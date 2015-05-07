@@ -24,7 +24,7 @@ library(gridExtra)
 
 #### define numper of Species (1 : 10000) ###
 
-spec.num <- 5
+spec.num <- 8
 ### define number of Functions ##
 
 func.num <- 3
@@ -94,25 +94,29 @@ spec <- paste(LETTERS,rep(1:100,each=100),sep = "_")
 null.model <- data.frame(SP = as.factor(rep(spec[1:spec.num],func.num)),
                          Func = as.factor(rep(paste("F",formatC(c(1:func.num),width = 2,flag = "0"),sep = "_"),each = spec.num)),
                          Value = as.numeric(round(Funcval,digits = 2)))
+
+
+
                          
-# plot function correlation
+###### plot function correlation
 null.wide <- dcast(null.model, SP ~ Func, value.var="Value")
 ggpairs(null.wide[,-1], lower=list(continuous = "smooth"))
 
-# calculate and plot possible combinations
-possible.comb <- data.frame(Richness = rep(NA,spec.num), numb.comb =  rep(NA,spec.num))
 
-for (p in 1: spec.num) {
-  possible.comb$Richness[p] <- p
-  possible.comb$numb.comb[p] <- prod(seq(spec.num, spec.num-(p-1),-1)) / prod(seq(1, spec.num-(spec.num-p),1))
-}
 
-ggplot(possible.comb, aes(x=Richness, y=numb.comb, label=numb.comb))+
+####### calculate and plot possible combinations
+
+possible.comb <- data.frame(Richness = 1:spec.num)
+possible.comb$numb.com <- choose(spec.num, possible.comb$Richness)
+
+ggplot(possible.comb, aes(x=Richness, y=numb.com, label=numb.com))+
   geom_point(size=3)+
   geom_text(hjust=1.5)+
   labs(y="number of possible species combinations", 
        title = paste("number of possible species combinations \n species pool = ", spec.num))+
   theme_bw(base_size=15)
+
+
 
 ######## function to calculate mixture values of function at given richness (unweighted average)
 avfunc_unweighted <- function(R) {
@@ -163,16 +167,66 @@ mixture.null <- data.frame(Func = character(),
 # create species matrix with all Diversity levels, enevn replication and 
 
 # all monocultures
-# total number of plots 
-# each monoculture, at each richness level, each species is present in at least 3 plots in random combinations
-# each richness level hass all possible combination if < 50, min 50 and half of all possible combinations if < 100
-# and maximum 200 combinations
+# for polycultures all possible combination if <= 50
+# if > 50, smallest multiple of spec.num over 50. 
+
+possible.comb$nrep <- possible.comb$numb.com
+possible.comb[possible.comb$nrep > 50,]$nrep  <- ceiling(50/spec.num)*spec.num
+possible.comb$sumrep <- cumsum(possible.comb$nrep)
+
+# total number of plots
+nplot <- sum(possible.comb$nrep)
+
+# empty species matrix
+Spec.mat <- matrix( data = 0, nrow = nplot, ncol = spec.num, 
+                    dimnames = list( c(1:nplot),levels(null.model$SP)))
+
+
+# fill with species combinations. If not all combinations are included, the replicates are first
+# filled with 1 species each (multiple times). Then the rest of the plot is filled with a random (but unique)
+# combination of the remaining species
+
+SPEC <- levels(null.model$SP)
+
+
+for (i in 1:spec.num) {
+  if (i == 1) { 
+    
+    for (n in 1:spec.num) {
+      Spec.mat[n,n]  <- 1
+  }
+  
+  } else {  row.seq <- (possible.comb$sumrep[i-1]+1):possible.comb$sumrep[i]
+            nTimes <- length(row.seq) / spec.num
+            SPECcomb <- data.frame(combn(SPEC,i))
+            
+            if (possible.comb$numb.com[i] <=50 ) {
+              
+              plotSPEC <- SPECcomb
+              
+            } else { plotSPEC <- SPECcomb[,sample(which(SPECcomb == SPEC[1], arr.ind=T)[,2], nTimes)]
+                     
+                     for (S in 2:spec.num) {
+                       plotSPEC <- cbind(plotSPEC, SPECcomb[,sample(which(SPECcomb == SPEC[S], arr.ind=T)[,2], nTimes)])
+                     }
+              
+            }
+            
+    
+    for (n in row.seq) {
+      
+      spec.ind <- which(colnames(Spec.mat) %in% plotSPEC[,n-min(row.seq-1)])
+      
+      Spec.mat[n,spec.ind]  <- 1
+      
+  
+  }  
+  }
+}
 
 
 
-nplot <- spec.numb
-
-Spec.mat <- matrix( data = 0, nrow = nplot, ncol = spec.num, dimnames = list( c(1:nplot), levels(null.model$SP)))
+combn()
 
 possible.comb$nplot  <- possible.comb$numb.comb * 
 
