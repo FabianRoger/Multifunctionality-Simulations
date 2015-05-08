@@ -318,7 +318,7 @@ AverageFunction <- function(SPM, FUNC, method = "average", comp = 1.01,
   
   # define function to be applyed to each plot for methof average or complementarity
   
-  if (is.na(pmatch(method, c("average", "complementarity")) == FALSE)) {
+  if (is.na(pmatch(method, c("average", "complementarity"))) == FALSE) {
   MeanFunc <- function(x) {
     mean(FUNC[FUNC$Species %in% colnames(x)[which(x == 1)] & FUNC$Functions == Fun,]$Funcval)
   } 
