@@ -22,52 +22,44 @@ library(gridExtra)
 # null model: substitutive and purely additive. multifunnc is average of weighted
 # average of single func (here: completely even so just arithmetic mean)
 
-#### define numper of Species (1 : 10000) ###
+########### load functions #############
 
-spec.num <- 8
+source("functions.R")
+
+####################
+
+
+#### define numper of Species (1 : 12) ###
+
+specnum <- 11
 ### define number of Functions ##
 
-func.num <- 3
+funcnum <- 5
 
-########## define distribution of function values ########## 
+# set up species matrix with specnum species 
 
-## fixed sequence  ######## mean will depend on funcnum. have to fix that later
-Funcval_seq <- c()
-for (i in 1:spec.num) {
-  Funcval_seq <-c(Funcval_seq, sample(seq(0.05,0.95,1/func.num),func.num,replace=F))
-}
+SpecMat <- SpeciesMatrix(specnum = specnum)
 
-## random from uniform
-Funcval_unif <- c()
-for (i in 1:spec.num) {
-  Funcval_unif <-c(Funcval_unif, runif(func.num,0,1))
-}
 
-## random from normal with mean of 4 and sd 1
-Funcval_norm <- c()
-for (i in 1:spec.num) {
-  Funcval_norm <-c(Funcval_norm, rnorm(func.num,4,1))
-}
+# set up functio matrix with specnum Species, funcnum functions
+# the functino values are drawn from the distribution specified in distribution
+# (all distribution listed in ?Distributions should work), all paramters
+# besides the number of samples to draw from the distribution must be specified
 
-## random from gamma 
-Funcval_gamm <- c()
-for (i in 1:spec.num) {
-  Funcval_gamm <-c(Funcval_gamm, rgamma(func.num,1))
-}
+FuncMat <- FunctionValue(specnum = specnum, funcnum = funcnum, spec = NULL, 
+                         func = NULL, distribution = "rgamma", 0.5, 1)
 
-## random from beta 
-Funcval_beta <- c()
-for (i in 1:spec.num) {
-  Funcval_beta <-c(Funcval_beta, rbeta(func.num,5,1))
-}
+# calculate plotwise function averages
+# three methods can be specified: average, complementarity and selection
+# complementarity and selection have further details, see the documentation in 
+# the function code for details. 
 
-## choose distribution
+# example with selection effect
+AvFunc <- AverageFunction(SpecMat, FuncMat, method = "sel", selfac = 2 )
 
-#Funcval <- Funcval_seq
-Funcval <- Funcval_unif
-#Funcval <- Funcval_norm
-#Funcval <- Funcval_gamm
-#Funcval <- Funcval_beta
+# example with complementarity effect
+AvFunc <- AverageFunction(SpecMat, FuncMat, method = "com", comp = 1.05, compfunc = "Func_01" )
+
 
 ######## German biodepth data #####
 
@@ -79,186 +71,7 @@ Germany <- all_biodepth[all_biodepth$location == "Germany",]
 
 # extract monocultures
 Germany_mono <- Germany[Germany$Diversity == 1,]
-
-
-
-
-## plot
-
-hist(Funcval, breaks=10)
-
-########## define null data set with parameters chosen above (Species, number functions, function values) #########
-
-spec <- paste(LETTERS,rep(1:100,each=100),sep = "_")
-
-null.model <- data.frame(SP = as.factor(rep(spec[1:spec.num],func.num)),
-                         Func = as.factor(rep(paste("F",formatC(c(1:func.num),width = 2,flag = "0"),sep = "_"),each = spec.num)),
-                         Value = as.numeric(round(Funcval,digits = 2)))
-
-
-
-                         
-###### plot function correlation
-null.wide <- dcast(null.model, SP ~ Func, value.var="Value")
-ggpairs(null.wide[,-1], lower=list(continuous = "smooth"))
-
-
-
-####### calculate and plot possible combinations
-
-possible.comb <- data.frame(Richness = 1:spec.num)
-possible.comb$numb.com <- choose(spec.num, possible.comb$Richness)
-
-ggplot(possible.comb, aes(x=Richness, y=numb.com, label=numb.com))+
-  geom_point(size=3)+
-  geom_text(hjust=1.5)+
-  labs(y="number of possible species combinations", 
-       title = paste("number of possible species combinations \n species pool = ", spec.num))+
-  theme_bw(base_size=15)
-
-
-
-######## function to calculate mixture values of function at given richness (unweighted average)
-avfunc_unweighted <- function(R) {
-  species.sample <- sample(levels(null.model$SP),R,replace = FALSE)
-  sample.function.val <- null.model[null.model$SP %in%  species.sample,]
-  average.function <- ddply(sample.function.val, .(Func), summarise, av_Func = mean(Value))
-  return(average.function)
-  }
-
-######## function to calculate mixture values of function at given richness with selection effect
-
-# I calculate the average function value in the mixture by weightin the species by the
-# species' value of a specific function ( i.e. "biomass")
-
-avfunc_selection <- function(R) {
-  species.sample <- sample(levels(null.model$SP),R,replace = FALSE)
-  sample.function.val <- null.model[null.model$SP %in%  species.sample,]
-  Weights <- sample.function.val[sample.function.val$Func == "F_01",]$Value
-  sample.function.val$weights <- rep( c( Weights / sum( Weights)), func.num)
-  average.function <- ddply(sample.function.val, .(Func), summarise, av_Func = weighted.mean(Value,weights))
-  return(average.function)
-}
-
-######## function to calculate mixture values of function at given richness with complementarity effect
-avfunc_complementarity <- function(R) {
-  species.sample <- sample(levels(null.model$SP),R,replace = FALSE)
-  sample.function.val <- null.model[null.model$SP %in%  species.sample,]
-  sample.function.val$Value <- sample.function.val$Value * 1.01^R
-  average.function <- ddply(sample.function.val, .(Func), summarise, av_Func = mean(Value))
-  return(average.function)
-}
-
-########## choose function #########
-
-avfunc <- avfunc_unweighted
-#avfunc <- avfunc_selection
-#avfunc <- avfunc_complementarity
-
-
-# empty dataframe to store results from loop
-mixture.null <- data.frame(Func = character(), 
-                           av_Func = numeric(),
-                           Richness = numeric(),
-                           rep = numeric())
-
-
-
-# create species matrix with all Diversity levels, enevn replication and 
-
-# all monocultures
-# for polycultures all possible combination if <= 50
-# if > 50, smallest multiple of spec.num over 50. 
-
-possible.comb$nrep <- possible.comb$numb.com
-possible.comb[possible.comb$nrep > 50,]$nrep  <- ceiling(50/spec.num)*spec.num
-possible.comb$sumrep <- cumsum(possible.comb$nrep)
-
-# total number of plots
-nplot <- sum(possible.comb$nrep)
-
-# empty species matrix
-Spec.mat <- matrix( data = 0, nrow = nplot, ncol = spec.num, 
-                    dimnames = list( c(1:nplot),levels(null.model$SP)))
-
-
-# fill with species combinations. If not all combinations are included, the replicates are first
-# filled with 1 species each (multiple times). Then the rest of the plot is filled with a random (but unique)
-# combination of the remaining species
-
-SPEC <- levels(null.model$SP)
-
-
-for (i in 1:spec.num) {
-  if (i == 1) { 
-    
-    for (n in 1:spec.num) {
-      Spec.mat[n,n]  <- 1
-  }
-  
-  } else {  row.seq <- (possible.comb$sumrep[i-1]+1):possible.comb$sumrep[i]
-            nTimes <- length(row.seq) / spec.num
-            SPECcomb <- data.frame(combn(SPEC,i))
-            
-            if (possible.comb$numb.com[i] <=50 ) {
-              
-              plotSPEC <- SPECcomb
-              
-            } else { plotSPEC <- SPECcomb[,sample(which(SPECcomb == SPEC[1], arr.ind=T)[,2], nTimes)]
-                     
-                     for (S in 2:spec.num) {
-                       plotSPEC <- cbind(plotSPEC, SPECcomb[,sample(which(SPECcomb == SPEC[S], arr.ind=T)[,2], nTimes)])
-                     }
-              
-            }
-            
-    
-    for (n in row.seq) {
-      
-      spec.ind <- which(colnames(Spec.mat) %in% plotSPEC[,n-min(row.seq-1)])
-      
-      Spec.mat[n,spec.ind]  <- 1
-      
-  
-  }  
-  }
-}
-
-
-
-combn()
-
-possible.comb$nplot  <- possible.comb$numb.comb * 
-
-  spec.num
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# populate dataframe for all richness levels from 1:10, with 100 replicates at each richness level
-for( R in 1:spec.num) {
-  for( replicate in 1:10) {
-    temp.func <- avfunc(R)
-    temp.func$Richness <- R
-    temp.func$replicate <- replicate
-    mixture.null <- rbind(mixture.null,temp.func)
-  }
-}
-
-# cast dataframe in wide format to comply with the dataformat used in the multifunc package
-mixture_wide <- dcast( mixture.null, Richness + replicate ~ Func, value.var = "av_Func")
+#####
 
 #################
 # In the following I replicate the analysis steps described 
@@ -280,11 +93,13 @@ mixture_wide <- dcast( mixture.null, Richness + replicate ~ Func, value.var = "a
 # SINGLE FUNCTION APPROACH #
 ############################
 
-# i dont calculate slopes and p-values as I'm primarily intrested in the graph here
+# reshape for plotting
 
-ggplot(mixture.null, aes(x = Richness, y = av_Func))+
+AvFunc_long <- melt(AvFunc[,-c(1:specnum)], id.vars=c("plot", "Richness"))
+
+ggplot(AvFunc_long, aes(x = Richness, y = value))+
   geom_point(size=3)+
-  facet_wrap(~Func) +
+  facet_wrap(~variable) +
   theme_bw(base_size=15)+
   stat_smooth(method="lm", colour="black", size=2) +
   xlab("\nSpecies Richness") +
@@ -303,13 +118,13 @@ ggplot(mixture.null, aes(x = Richness, y = av_Func))+
 ######################
 
 # extract function names
-func.names <- levels(mixture.null$Func)
+func.names <- colnames( AvFunc[ ( specnum + 3) : ncol( AvFunc)])
 
 # add on the new (standardized) functions along with the averaged multifunctional index
-mixture_wide <- cbind(mixture_wide, getStdAndMeanFunctions(mixture_wide, func.names))
+AvFunc <- cbind(AvFunc, getStdAndMeanFunctions(AvFunc, func.names))
 
 #plot it
-ggplot(mixture_wide, aes(x=Richness, y=meanFunction))+
+ggplot(AvFunc, aes(x=Richness, y=meanFunction))+
     geom_point(size=3)+
     theme_bw(base_size=15)+
     stat_smooth(method="lm", colour="black", size=2) +
@@ -317,10 +132,10 @@ ggplot(mixture_wide, aes(x=Richness, y=meanFunction))+
     ylab("Average Value of Standardized Functions\n")
 
 #reshape for plotting everything with ggplot2 
-AvForPlot <- melt(mixture_wide[,c("Richness",paste(func.names,"std",sep="."))], id.vars="Richness")
+AvForPlot <- melt(AvFunc, id.vars=colnames(AvFunc[1:(specnum+2)]))
 
 #plot it 
-ggplot(AvForPlot, aes(x=Richness,y=value))+
+ggplot(AvForPlot, aes(x=Richness,y=value, colour=A_01))+
   geom_point(size=3)+ 
   facet_wrap(~variable,nrow=2) +
   theme_bw(base_size=15)+
@@ -332,8 +147,8 @@ ggplot(AvForPlot, aes(x=Richness,y=value))+
 # THRESHOLD APPROACH #
 ######################
 
-mixedThresh <- getFuncsMaxed(mixture_wide, func.names, threshmin=0.05, threshmax=0.99, 
-                           prepend=c("Richness","replicate"), maxN=1)
+mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
+                           prepend=c("Richness","plot"), maxN=1)
 
 gcPlot_mixed <- subset(mixedThresh, mixedThresh$thresholds %in% qw(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))
 gcPlot_mixed$percent <- paste(100*gcPlot_mixed$thresholds, "%", sep="")
