@@ -54,6 +54,21 @@ SpeciesList <- function(specnum) {
 
 }
 
+FunctionList <- function(funcnum) {
+  # creates character vector with funcnam function names. Function are named as 
+  # follows: Func_01, Func_02 (...) 
+  #
+  # Args:
+  #   funcnum: integer, positive number giving the number of FGunctions to be named
+  #
+  # Returns: character vector with funcnam Function names
+  
+  func.list <- paste("Func", formatC(1:funcnum, width=2, flag="0"),sep = "_")
+  
+  return(func.list)
+  
+}
+
 
 SpeciesMatrix <- function(specnum = NULL, spec = NULL, expdesign = NULL) {
   # creates a species matrix with specnum species sample structure
@@ -96,6 +111,10 @@ SpeciesMatrix <- function(specnum = NULL, spec = NULL, expdesign = NULL) {
     
    
  # Error handling
+ 
+ if (specnum > 12) {stop("more than 12 Species not soupported yet, do to 
+                         computation-time problems")}
+ 
   if ( FALSE %in% ( c("Richness", "nrep") %in% colnames( expdesign))) {
     stop("the experimental design data.frame (expdesign) must contain at least 
           the following columns: 
@@ -142,18 +161,28 @@ for (i in expdesign$Richness) {
             nTimes <- length(row.seq) / specnum
             SPECcomb <- data.frame(combn(spec,i))
             
-            if (expdesign$numb.com[n.Row] <=50 ) { # if numb.com <= 50 -> all combinations
+            if (expdesign$numb.com[n.Row] <=50 | expdesign$numb.com[n.Row] ==
+                  expdesign$nrep[n.Row] ) { 
               
-              plotSPEC <- SPECcomb
+              plotSPEC <- SPECcomb # if numb.com <= 50 -> all combinations
               
             } else { plotSPEC <- SPECcomb[,sample(which(SPECcomb == spec[1], 
                                                         arr.ind=T)[,2], nTimes)]
                      
                      for (S in 2:specnum) { #sample unique possible comb
-                       plotSPEC <- cbind(plotSPEC, SPECcomb[,sample(
-                         which(SPECcomb[ wich( !colnames( SPECcomb) %in%
-                                                 colnames(plotSPEC)), ] ==
-                                 SPEC[S], arr.ind=T)[,2], nTimes)])
+                       SPECcomb <- SPECcomb[ ,which( ! colnames( SPECcomb) %in%
+                                                        colnames( plotSPEC))]
+                       
+                       SPECsample <- try(SPECcomb[,sample(
+                         which(SPECcomb == spec[S], arr.ind=T)[,2], nTimes)],
+                         silent = T)
+                       
+                       if(class(SPECsample) != "try-error") {
+                         plotSPEC <- cbind(plotSPEC,SPECsample)
+                       } else {plotSPEC <- cbind(
+                         plotSPEC, SPECcomb[,sample(colnames(SPECcomb),nTimes)]) }
+                       
+                       
                      }
                      
             }
@@ -168,7 +197,177 @@ for (i in expdesign$Richness) {
 return(Spec.mat)
 
 }
-            
-              
+
+##################################################
+
+FunctionValue <- function(specnum = NULL, funcnum = NULL, 
+                           distribution = NULL, spec = NULL, func = NULL, ...) {
+  # function that assigns N species function values for M functions
+  #
+  # Args:
+  #   specnum: number of species (numeric, integer)
+  #   spec: character vector giving species names. if Null, generated 
+  #         by SpeciesList()
+  #   funcnum: number of function
+  #   func: character vector givinng function names. if NULL, generated
+  #         by FunctionList()
+  #   distribution: any of the distribution functions in the stats package
+  #                 given as character string (e.g. "rnorm"). 
+  #   ... further arguments to be passed to the distribution function
+  
+  # error handling
+  if (! distribution %in% ls("package:stats")) {
+    stop(" distribution must be one of the functions in the stats package.
+         see ?Distributions for options")
+  }
+  
+  distf <- get(distribution)
+  
+  Try <- try(distf(5,...))
+  
+  if(class(Try) == "try-error") {
+    stop ( paste("distribution parameters seem to be wrongly speciefied see ?",
+                 distribution," for help", sep=""))}
+  
+  if ( is.null( specnum) & is.null( spec)) {
+    stop( "either the number of species or a vector with species names must be given")
+  }
+  
+  if (is.null( funcnum) & is.null( func)) {
+    stop( "either the number of functions or a vector with function names must be given")
+  }
+  
+  if (is.null( specnum)) {
+    specnum <- length(sepc)
+  }
+  
+  if (is.null( funcnum)) {
+    funcnum <- length(func)
+  }  
+  
+  if (is.null( spec)){
+    spec <- SpeciesList( specnum)
+  }
+  
+  if (is.null( func)){
+    func <- FunctionList( funcnum)
+  }
+  
+  SpecFunc <- data.frame(Species = rep(spec,funcnum), Functions = 
+                           rep(func, each = specnum), Funcval = NA)
+  
+  for (i in func) {
+    SpecFunc[SpecFunc$Functions == i,]$Funcval <- distf(specnum,...)
+  }
+  
+  return(SpecFunc)
+  
+}
+
+##################################################
+
+
+AverageFunction <- function(SPM, FUNC, method = "average", comp = 1.01, 
+                            selfac = 1, selfunc = "Func_01", compfunc = "all") {
+  # function to calculate the avreage function value of species
+  # mixtures. 
+  #
+  # Args:
+  #   SPM: a species matrix as prodcued by SpeciesMatrix(); if matrix is
+  #        not presence absence, it is transformed to p/a internally
+  #   FUNC: a dataframe as produced by FunctionValue() giving the function 
+  #         values for each species in long format. Species names must match 
+  #         colnames of SPM. 
+  #   method: one of "average", "complementarity" or "selection", specifying 
+  #           how the mixture function should be calculated
+  #   comp: "complementarity factor" for method "complementarity". each function
+  #          value will be multiplied by comp^(Richness)
+  #   selfunc: "selection function", function whichs function values are taken 
+  #             to calculate the weightes mean for all functions
+  #   selfac: "selection factor": factor by which the weights will be amplified 
+  #   compfunc: if complementarity should only happen for some functions, the 
+  #             funcitons can be specified as here. default is all. 
+  #
+  # Returns:
+  #   dataframe with Richness of each plot and average function value for each 
+  #   function
+  
+  # error handling
+  if (class(SPM) != "matrix" | is.numeric(SPM) != TRUE) {
+    stop("SPM must be a numeric matrix")
+  }
+  
+  if (NA %in% match(colnames(SPM), unique(FUNC$Species))) {
+    stop(" not all species in species matrix represented in function dataframe")
+  }
+  
+  # calculate Richness for each plot and add plotnumber
+  SPM <- data.frame(SPM)
+  specnum <- ncol(SPM)
+  SPM$plot <- c(1:nrow(SPM))
+  
+  # split dataframe into list by plot
+  SPM_list <- by(SPM, SPM$plot, list)
+  
+  # extract function names from FUNC
+  func <- as.character(unique(FUNC$Functions))
+  
+  # create emty matrix to store avergae function values
+  mean.functions <- matrix(ncol=length(func), nrow=nrow(SPM), dimnames=list(
+    SPM$plot, func))
+  
+  # define function to be applyed to each plot for methof average or complementarity
+  
+  if (is.na(pmatch(method, c("average", "complementarity")) == FALSE)) {
+  MeanFunc <- function(x) {
+    mean(FUNC[FUNC$Species %in% colnames(x)[which(x == 1)] & FUNC$Functions == Fun,]$Funcval)
+  } 
+  }
+  
+  # define function to be applyed to each plot for selection effect
+  
+  if (is.na(pmatch(method, "selection")) == FALSE) {
+    
+    spec.weights <- FUNC[FUNC$Functions == selfunc,]
+    spec.weights$WEIGHTS <- (spec.weights$Funcval) ^ selfac /
+      max((spec.weights$Funcval) ^ selfac)
+    
+    MeanFunc <- function(x) {
+      weighted.mean(FUNC[FUNC$Species %in% colnames(x)[which(x == 1)] & 
+                           FUNC$Functions == Fun,]$Funcval,
+                    spec.weights[spec.weights$Species %in% colnames(x)[
+                      which(x == 1)] , ]$WEIGHTS)
+    } 
+  }
+  
+  
+  # calculate mean funciton value
+  for (Fun in func) {
+    mean.functions[,Fun] <- sapply(SPM_list, MeanFunc)
+  } 
+  
+  SPM$Richness <- rowSums(SPM[,1:specnum])
+  SPM <- cbind(SPM , mean.functions)
+  
+  # multiply with complementraity factor if method = "complementarity"
+ 
+  if (is.na(pmatch(method, "complementarity")) == FALSE) {
+    
+    if (compfunc == "all") {
+      
+      SPM[ SPM$Richness != 1 , ( specnum + 3) : ncol( SPM)] <- SPM[
+        SPM$Richness != 1 , ( specnum + 3) : ncol( SPM)] * comp ^ SPM[
+          SPM$Richness !=1 ,]$Richness
+      
+    } else { SPM[ SPM$Richness != 1, which( colnames( SPM) %in% compfunc)] <- SPM[
+      SPM$Richness !=1, which( colnames( SPM) %in% compfunc)] * comp ^ SPM[
+        SPM$Richness != 1, ]$Richness}
+  }
+  
+  return(SPM)
+
+}
+  
+     
                 
 
