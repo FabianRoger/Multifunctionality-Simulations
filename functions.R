@@ -318,11 +318,11 @@ AverageFunction <- function(SPM, FUNC, method = "average", comp = 1.01,
   # extract function names from FUNC
   func <- as.character(unique(FUNC$Functions))
   
-  # create emty matrix to store avergae function values
+  # create empty matrix to store avergae function values
   mean.functions <- matrix(ncol=length(func), nrow=nrow(SPM), dimnames=list(
     SPM$plot, func))
   
-  # define function to be applyed to each plot for methof average or complementarity
+  # define function to be applied to each plot for method average or complementarity
   
   if (is.na(pmatch(method, c("average", "complementarity"))) == FALSE) {
   MeanFunc <- function(x) {
@@ -362,18 +362,17 @@ AverageFunction <- function(SPM, FUNC, method = "average", comp = 1.01,
     if (compfunc == "all") {
       
       SPM[ SPM$Richness != 1 , ( specnum + 3) : ncol( SPM)] <- SPM[
-        SPM$Richness != 1 , ( specnum + 3) : ncol( SPM)] * comp ^ SPM[
-          SPM$Richness !=1 ,]$Richness
+        SPM$Richness != 1 , ( specnum + 3) : ncol( SPM)] *  (comp - exp( -SPM[ SPM$Richness !=1 ,]$Richness / 5))
       
     } else { SPM[ SPM$Richness != 1, which( colnames( SPM) %in% compfunc)] <- SPM[
-      SPM$Richness !=1, which( colnames( SPM) %in% compfunc)] * comp ^ SPM[
-        SPM$Richness != 1, ]$Richness}
+      SPM$Richness !=1, which( colnames( SPM) %in% compfunc)] * (comp - exp( -SPM[ SPM$Richness !=1 ,]$Richness / 5))}
   }
   
   return(SPM)
 
 }
   
+
      
                 
 
