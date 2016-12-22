@@ -37,8 +37,9 @@ return(possible.comb)
 }
 
 SpeciesList <- function(specnum) {
-  # creates character vector with specnum species names. Species are named as 
-  # follows: A_01, B_01 (...) Z_01, A_02, B_02 (...)
+  # creates character vector with specnum species names. If specnum ≤ 26 Species are 
+  # named as A - Z, if specnum > 26, species are named as follows: 
+  # A_01, B_01 (...) Z_01, A_02, B_02 (...)
   #
   # Args:
   #   specnum: integer, positive number giving the number of species to be named
@@ -47,9 +48,14 @@ SpeciesList <- function(specnum) {
   
   L <- length(LETTERS)
   NUM <- ceiling(specnum/L)
-  spec.list <- paste(LETTERS, rep(formatC(1:NUM, width=2, flag="0"),each=L),
-                     sep = "_")
-  spec.list <- spec.list[1:specnum]
+  if (specnum <= L) {
+    spec.list <- LETTERS[1:specnum]
+  } else {
+    spec.list <- paste(LETTERS, rep(formatC(1:NUM, width=2, flag="0"), each=L),
+                       sep = "_")
+    spec.list <- spec.list[1:specnum]
+    }
+  
   return(spec.list)
 
 }
