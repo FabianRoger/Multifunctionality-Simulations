@@ -1,0 +1,667 @@
+---
+title: "Multifunctionality Simulations"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+```
+
+things to chnage in Graphics:
+
+Name functions F1 - F10
+Correct y-axis on multithreshold graph
+
+join species func matrix & function correlation matrix with grid arrange
+(or maybe skip it)
+
+use seed 999 and draw from uniforme distribution
+specnum : 15
+funcnum : 9
+
+main figure: (Figure 2)
+
+two scenarios (columns) 
+1) no complementarity
+2) complementarity on 2 functions (compfac 3, r = 0.5)
+
+
+four rows: 
+1) single functions (9 x 9), lighter grey 
+2) average
+3) multiple thresholds (9 x 9)
+4) multithreshold
+
+
+Figure 3: 
+
+number of functions vs first sign change,
+
+from 5 to 25 functions, drawn from uniform distribution, 10 replicates each. 
+
+
+
+
+```{r, include = FALSE}
+library(multifunc)
+library(ggplot2)
+library(ggrepel)
+library(gridExtra)
+library(Cairo)
+library(grid)
+library(cowplot)
+library(dplyr)
+library(tidyr)
+library(broom)
+library(tibble)
+
+```
+
+
+
+### defining species - function matrix
+
+Here we define 
+
++ `specnum` : how many species we want 
++ `funcnum` : how many functions these species perform collectively 
++ `distribution` : from which statistical distribution the function values should be drawn. 
+
+Each distribution is encoded with default parameters that can be adapted. 
+
+```{r}
+source("functions_short.R")
+
+specnum <- 15
+funcnum <- 9
+
+distribution = "runif"
+```
+
+For the simulations presented in the article we chose the following parameters
+
++ `specnum` : `r specnum`
++ `funcnum` : `r funcnum`
++ `distribution` : `r distribution`
+
+```{r}
+#set seed to replicate analysis:
+
+set.seed(999)
+
+# create function matrix
+FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
+
+FuncMat <- FuncMat %>% 
+  group_by(Functions) %>% 
+  mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval)))
+
+
+SF_G <- ggplot(FuncMat, aes(Functions, Species, fill = Funcval))+
+  geom_tile(colour = "black", size = 0.7)+
+  annotate(geom = "text", x = (1:funcnum)+0.5, y = specnum + specnum/7, label = unique(FuncMat$Functions), angle = 30)+
+  annotate(geom = "text", x = -1, y = 1:specnum , label = unique(FuncMat$Species))+
+  scale_fill_gradient2(midpoint = 0.5, mid = "#FFFFCC", low = "#000066", high = "#990000", limits = c(0,1))+
+  theme_bw()+
+  theme(
+  axis.text.x=element_blank(),
+  axis.text.y=element_blank(),
+  panel.grid.major = element_blank(),
+  panel.border = element_blank(),
+  panel.background = element_blank(),
+  axis.ticks = element_blank(), 
+  plot.margin=unit(c(1, 1, 0, 0), "cm"))+
+  labs(x = "", y = "")
+
+
+      
+SF_G <- ggplot_gtable(ggplot_build(SF_G))
+SF_G$layout$clip[SF_G$layout$name == "panel"] <- "off"
+plot(SF_G)
+  
+
+FuncMat_wide <- FuncMat %>% spread(Functions, Funcval)
+
+C_mat <- cor(FuncMat_wide[,-1])
+C_mat[upper.tri(C_mat, diag = TRUE)] <- NA
+
+  
+C_mat <- C_mat %>%  
+  as.data.frame %>% 
+  rownames_to_column(var="Func1") %>% 
+  gather(Func2, Func2_val, -Func1)
+
+
+Cor_G <- ggplot(C_mat, aes(x = Func1, y = Func2, fill = Func2_val))+
+  geom_tile(colour = "white", size = 0.7)+
+  annotate(geom = "text", x = funcnum+funcnum/10, y = (1:(funcnum-1))+0.5, label = unique(C_mat$Func1)[-funcnum], angle =30)+
+  annotate(geom = "text", x = seq(2 , funcnum, 1 ), y = -1 , label = unique(C_mat$Func1)[-1])+
+  geom_text(aes(Func1, Func2, label = signif(Func2_val,1)), color = "black", size = round(40/funcnum))+
+  scale_fill_gradient2(midpoint = 0, mid = "#FFFFCC", low = "#000066", high = "#990000", 
+                       limits = c(-1,1), na.value = "white", name = "Pearson\nCorrelation")+
+  labs(x = "", y = "") +
+  theme(
+  axis.text.x=element_blank(),
+  axis.text.y=element_blank(),
+  panel.grid.major = element_blank(),
+  panel.border = element_blank(),
+  panel.background = element_blank(),
+  axis.ticks = element_blank(),
+  legend.position = c(0.7,0.15))+
+       guides(fill = guide_colorbar(barwidth = 10, barheight = 2,
+                                    title.position = "top",
+                                    direction = "horizontal")) +
+  theme(plot.margin = unit(c(1,1,1,1), "cm"))+
+  coord_flip()
+
+
+
+    
+
+Cor_G <- ggplot_gtable(ggplot_build(Cor_G))
+Cor_G$layout$clip[Cor_G$layout$name == "panel"] <- "off"
+plot(Cor_G)
+
+```
+
+
+# Simulate diveristy experiment
+
+with the species and function values defined above, we simulate a diveristy experiment where 
+
++ we have 1 : `r specnum` richness levels
++ we have all possible combinations at each level or a maximum of 50 unique species combinations (whichever number is smaller)
++ we need to choose a method for computing a mixture function value. 
+
+The possible methods are:
+
++ `av` for average. Here the mixture values at each diversity level are the unweighted single - species function values. So simply the mean (or average) value of the community.
+
++ `comp` for complementarity. Here one, several or all functions are mulitplied with a complementrity factor before the average is calculated. The complementarity factor is always a saturating  function of the richness level of the form:
+
+$$ compfac = CF * ( 1 - ( 1 - \frac{1}{CF} ) * exp{ ( 1 - Richness ^ r )} $$
+
+  + `CF` is maximum complementarity
+  + `r` *growthrate* i.e. the rate at which `compfac` growth to `CF`
+
++ `sel` for selection. Here we choose a function that is *selected for* and assume that the species abundance are proportional to the function value of this function for all species in the community. We the calculate the community function value as the weighted average, with the weights being proportional to the value of the *selection function* for each species. 
+
+### scenarion 1 - no diveristy effect on any single function
+
+```{r}
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+
+#select method and additional parameters if appropriate by setting the `if` statement to `TRUE`
+
+if (TRUE) {method = "av"}
+
+if (FALSE) {method = "comp"
+            CF = 2
+              compfunc = "all"
+              r = 0.05}
+
+#Average function
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+
+AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness)
+
+SingleFunc <- ggplot(AvFunc_long, aes(x = Richness, y = FuncVal))+
+  geom_point(shape = 21, colour = "darkgrey", fill = NA)+
+  facet_wrap(~Function) +
+  theme_bw(base_size=15)+
+  stat_smooth(method="lm", colour="red") +
+  xlab("\nSpecies richness") +
+  ylab("Value of function\n") +
+  theme(panel.grid = element_blank())
+
+SingleFunc
+
+```
+
+### Average approach for multifunctionality
+
+```{r}
+
+# extract function names
+func.names <- as.character( unique( FuncMat$Functions))
+
+# add on the new (standardized) functions along with the averaged multifunctional index
+AvFunc <- cbind(AvFunc, getStdAndMeanFunctions(AvFunc, func.names))
+
+#plot it
+AverageFunc <- ggplot(AvFunc, aes(x=Richness, y=meanFunction))+
+    geom_point(shape = 21, size = 2, colour = "darkgrey", fill = NA)+
+    theme_bw(base_size=15)+
+    stat_smooth(method="lm", colour="red") +
+    xlab("\nSpecies richness") +
+    ylab("Average value of standardized functions\n")+
+    scale_y_continuous(limits = c(0.25,0.75))+
+    scale_x_continuous(breaks = seq(1,15,2))
+
+AverageFunc
+
+```
+
+### multi-threshold approach for multifunctionality
+
+```{r}
+
+
+mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
+                           prepend=c("Richness"), maxN=1)
+
+
+singleThresh <- filter(mixedThresh, as.character(thresh) %in% as.character(seq(0,1,0.1))) %>% 
+  mutate(prct = paste(thresholds * 100, "%")) %>% 
+  ggplot(., aes(x = Richness, y = funcMaxed))+
+  geom_point(alpha = 0.3, shape = 21, colour = "darkgrey", fill = NA)+
+  stat_smooth(method = "lm", colour = "red", se = F)+
+  facet_wrap(~prct)+
+  labs(x = "Species richness", y = "Number of functions ≥ threshold")+
+  theme_bw(base_size=15)+
+  scale_y_continuous(limits = c(0,10), breaks = seq(0,10,3))+
+  scale_x_continuous(breaks = seq(1,15,2))
+
+singleThresh
+
+###### graph to explain slope pattern #####
+
+patterexp1 <- filter(mixedThresh, as.character(thresh) %in% as.character(seq(0,1,0.01))) %>% 
+  filter(Richness %in% c(1,max(Richness))) %>% 
+  group_by(thresholds, Richness) %>% 
+  summarize(funcMaxed = mean(funcMaxed)) %>% 
+  mutate(prct = paste(thresholds * 100, "%")) %>% 
+  ggplot(., aes(x = Richness, y = funcMaxed, colour = thresholds))+
+  geom_point()+
+  geom_line(aes(group = thresholds))+
+  labs(x = "Species richness", y = "Number of function ≥ threshold")+
+  scale_colour_gradient2(low = "#f7fcf0",mid = "#7bccc4", high = "#084081", limits = c(0,1))+
+  scale_y_continuous(limits = c(0,9), breaks = seq(0,9,1))+
+  scale_x_continuous(breaks = seq(1,15,2))+
+  theme_bw(base_size = 15)+
+  theme(legend.position = "none")
+  
+
+
+############################################
+
+
+
+mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+                               coefVar="Richness")
+
+colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+
+
+multiTresh <- ggplot(mixedLinearSlopes, aes(x=thresholds)) +
+  geom_ribbon(fill="grey50", aes(x=thresholds*100, ymin=Estimate- 1.96*mixedLinearSlopes[["Std. Error"]],                              ymax=Estimate+1.96*mixedLinearSlopes[["Std. Error"]])) + 
+  geom_point(aes(x=thresholds*100, y=Estimate)) +
+  ylab("Change in number of functions per addition of 1 species\n(slope)") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
+  theme_bw(base_size=15)+
+   scale_y_continuous(limits = c(-0.3, 0.3))
+
+multiTresh
+
+
+############################################
+Tile <- FuncMat %>% group_by(Functions) %>% 
+  summarise(Funcval = mean(Funcval)) %>% 
+  mutate(Species = "all") %>%
+  rbind(., as.data.frame(FuncMat)) %>% 
+  mutate(Species = factor(Species, levels = c(LETTERS[1:specnum], "all"))) %>% 
+ggplot(., aes(Species, Functions, fill = Funcval))+
+  geom_tile(colour = "black", size = 0.7)+
+  geom_text(aes(x = Species, y = Functions, label = signif(Funcval,2)*100), size = 3, colour = "white")+
+  geom_vline(aes(xintercept = 15.5), colour = "white") +
+  scale_fill_gradient2(low = "#f7fcf0",mid = "#7bccc4", high = "#084081", limits = c(0,1))+
+  theme_bw(base_size=15)+
+  theme(legend.position = "none")
+
+############################################
+
+patterexp2 <- ggplot(mixedLinearSlopes, aes(x=thresholds)) +
+  geom_point(aes(x=thresholds*100, y=Estimate, colour = thresholds)) +
+  ylab("Slopes") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
+  theme_bw(base_size=15)+
+   scale_y_continuous(limits = c(-0.3, 0.3))+
+  scale_colour_gradient2(low = "#f7fcf0",mid = "#7bccc4", high = "#084081", limits = c(0,1), breaks=c(0.1,0.5,0.9),labels=c("10%","50%","90%"))
+
+############################################
+
+
+```
+
+
+###Figure 4
+
+```{r, fig.width = 12}
+Figure_4 <- plot_grid(Tile, patterexp1, patterexp2,
+                      nrow = 1,
+                      labels = c("(i)", "(ii)", "(iii)"),
+                      hjust = -1,
+                      vjust = 1.5,
+                      label_size = 13)
+
+
+ggsave("Figure_4.eps", Figure_4, width = 15, height = 5, device=cairo_pdf)
+
+plot(Figure_4)
+
+
+
+```
+
+
+
+
+
+
+##2 scenarion  - complementarity effect on 2 functions
+
+```{r}
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+
+#select method and additional parameters if appropriate by setting the `if` statement to `TRUE`
+
+if (FALSE) {method = "av"}
+
+if (TRUE) {method = "comp"
+            CF = 3
+              compfunc = c("F 1", "F 6")
+              r = 0.5}
+
+#Average function
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+
+AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness)
+
+SingleFunc_comp <- ggplot(AvFunc_long, aes(x = Richness, y = FuncVal))+
+  geom_point(shape = 21, colour = "darkgrey", fill = NA)+
+  facet_wrap(~Function) +
+  theme_bw(base_size=15)+
+  stat_smooth(method="lm", colour="red") +
+  xlab("\nSpecies richness") +
+  ylab("Value of function\n") +
+  theme(panel.grid = element_blank())
+
+SingleFunc_comp
+
+```
+
+### Average approach for multifunctionality
+
+```{r}
+
+# extract function names
+func.names <- as.character( unique( FuncMat$Functions))
+
+# add on the new (standardized) functions along with the averaged multifunctional index
+AvFunc <- cbind(AvFunc, getStdAndMeanFunctions(AvFunc, func.names))
+
+#plot it
+AverageFunc_comp <- ggplot(AvFunc, aes(x=Richness, y=meanFunction))+
+    geom_point(shape = 21, size = 2, colour = "darkgrey", fill = NA)+
+    theme_bw(base_size=15)+
+    stat_smooth(method="lm", colour="red") +
+    xlab("\nSpecies richness") +
+    ylab("Average value of standardized functions\n")+
+    scale_y_continuous(limits = c(0.25,0.75))+
+    scale_x_continuous(breaks = seq(1,15,2))
+
+AverageFunc_comp
+
+```
+
+### multi-threshold approach for multifunctionality
+
+```{r}
+
+
+mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
+                           prepend=c("Richness"), maxN=1)
+
+
+singleThresh_comp <- filter(mixedThresh, as.character(thresh) %in% as.character(seq(0,1,0.1))) %>% 
+  mutate(prct = paste(thresholds * 100, "%")) %>% 
+  ggplot(., aes(x = Richness, y = funcMaxed))+
+  geom_point(alpha = 0.3, shape = 21, colour = "darkgrey", fill = NA)+
+  stat_smooth(method = "lm", colour = "red", se = F)+
+  facet_wrap(~prct)+
+  labs(x = "Species richness", y = "Number of functions ≥ threshold")+
+  theme_bw(base_size=15)+
+  scale_y_continuous(limits = c(0,10), breaks = seq(0,10,3))+
+  scale_x_continuous(breaks = seq(1,15,2))
+
+singleThresh_comp
+
+###### graph to explain slope pattern #####
+
+filter(mixedThresh, as.character(thresh) %in% as.character(seq(0,1,0.01))) %>% 
+  filter(Richness %in% c(1,max(Richness))) %>% 
+  group_by(thresholds, Richness) %>% 
+  summarize(funcMaxed = mean(funcMaxed)) %>% 
+  mutate(prct = paste(thresholds * 100, "%")) %>% 
+  ggplot(., aes(x = Richness, y = funcMaxed, colour = thresholds))+
+  geom_point()+
+  geom_line(aes(group = thresholds))+
+  labs(x = "Species richness", y = "Number of function ≥ threshold")+
+  theme_bw()+
+  scale_colour_gradient(low = "red", high = "blue", breaks=c(0.1,0.5,0.9),labels=c("10%","50%","90%"))+
+  scale_y_continuous(limits = c(0,9), breaks = seq(0,9,1))+
+  scale_x_continuous(breaks = seq(1,15,2))
+
+
+
+############################################
+
+
+
+mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+                               coefVar="Richness")
+
+colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+
+
+multiTresh_comp <- ggplot(mixedLinearSlopes, aes(x=thresholds)) +
+  geom_ribbon(fill="grey50", aes(x=thresholds*100, ymin=Estimate- 1.96*mixedLinearSlopes[["Std. Error"]],
+                                 ymax=Estimate+1.96*mixedLinearSlopes[["Std. Error"]])) + 
+  geom_point(aes(x=thresholds*100, y=Estimate)) +
+  ylab("Change in number of functions per addition of 1 species\nslope") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
+  theme_bw(base_size=15)+
+  scale_y_continuous(limits = c(-0.3, 0.3))
+
+multiTresh_comp
+```
+
+### Figure 1
+
+```{r}
+
+SingleFunc <- SingleFunc + labs(x = "") + theme(plot.margin=unit(c(1.5,0.5,1,1), "cm"))
+SingleFunc_comp <- SingleFunc_comp + labs(x = "", y = "") + theme(plot.margin=unit(c(1.5,1,1,0.5), "cm"))
+AverageFunc <- AverageFunc + labs(x = "") + theme(plot.margin=unit(c(1,0.5,1,1), "cm"))
+AverageFunc_comp <- AverageFunc_comp + labs(x = "", y = "") + theme(plot.margin=unit(c(1,1,1,0.5), "cm"))
+singleThresh <- singleThresh + theme(plot.margin=unit(c(1,0.5,1,1), "cm"))
+singleThresh_comp <- singleThresh_comp + labs(y = "") + theme(plot.margin=unit(c(1,1,1,0.5), "cm"))
+multiTresh <- multiTresh + theme(plot.margin=unit(c(1,0.5,1,1), "cm"))
+multiTresh_comp <- multiTresh_comp + labs(y = "") + theme(plot.margin=unit(c(1,1,1,0.5), "cm"))
+
+
+# convert plot to gtables
+SingleFunc <- ggplotGrob(SingleFunc)
+SingleFunc_comp <- ggplotGrob(SingleFunc_comp)
+AverageFunc <- ggplotGrob(AverageFunc)
+AverageFunc_comp <- ggplotGrob(AverageFunc_comp)
+singleThresh <- ggplotGrob(singleThresh)
+singleThresh_comp <- ggplotGrob(singleThresh_comp)
+multiTresh <- ggplotGrob(multiTresh)
+multiTresh_comp <- ggplotGrob(multiTresh_comp)
+
+# convert width to unit lists 
+SingleFunc$widths <- grid:::unit.list(SingleFunc$widths)   
+SingleFunc_comp$widths <-  grid:::unit.list(SingleFunc_comp$widths)
+AverageFunc$widths <- grid:::unit.list(AverageFunc$widths)   
+AverageFunc_comp$widths <- grid:::unit.list(AverageFunc_comp$widths)
+singleThresh$widths <- grid:::unit.list(singleThresh$widths)
+singleThresh_comp$widths <- grid:::unit.list(singleThresh_comp$widths)   
+multiTresh$widths <- grid:::unit.list(multiTresh$widths)   
+multiTresh_comp$widths <- grid:::unit.list(multiTresh_comp$widths)   
+
+# extract the first three widths, corresponding to left margin, y lab, and y axis
+SingleFunc.widths <- SingleFunc$widths[1:3] 
+SingleFunc_comp.widths <- SingleFunc_comp$widths[1:3] 
+AverageFunc.widths <- AverageFunc$widths[1:3] 
+AverageFunc_comp.widths <- AverageFunc_comp$widths[1:3] 
+singleThresh.widths <- singleThresh$widths[1:3] 
+singleThresh_comp.widths <- singleThresh_comp$widths[1:3] 
+multiTresh.widths <- multiTresh$widths[1:3] 
+multiTresh_comp.widths <- multiTresh_comp$widths[1:3] 
+
+# extracting max width
+max.widths <- unit.pmax(SingleFunc.widths, 
+                        SingleFunc_comp.widths,
+                        AverageFunc.widths,
+                        AverageFunc_comp.widths,
+                        singleThresh.widths,
+                        singleThresh_comp.widths,
+                        multiTresh.widths,
+                        multiTresh_comp.widths)
+
+# assigning max width
+SingleFunc$widths[1:3] <-  max.widths
+SingleFunc_comp$widths[1:3] <-  max.widths
+AverageFunc$widths[1:3] <-  max.widths
+AverageFunc_comp$widths[1:3] <-  max.widths
+singleThresh$widths[1:3] <-  max.widths
+singleThresh_comp$widths[1:3] <-  max.widths
+multiTresh$widths[1:3] <-  max.widths
+multiTresh_comp$widths[1:3] <-  max.widths
+
+Figure_1 <- plot_grid(SingleFunc, SingleFunc_comp,
+          AverageFunc, AverageFunc_comp,
+          singleThresh, singleThresh_comp,
+          multiTresh, multiTresh_comp, 
+          ncol = 2,
+          labels = letters[c(1, 5, 2, 6, 3, 7, 4, 8)],
+          hjust = -6,
+          vjust = 1.5,
+          label_size = 18)
+
+ggsave( "Figure_1.pdf", Figure_1, height = 20, width = 14, device=cairo_pdf)
+
+```
+
+
+
+### multithreshold approach with varying number of functions
+
+Here we compute three summary statistics from the multithreshold graph:
+
++ the threshold at which the maximum slope is reached
++ the threshold before which the slope changes sign
++ the threshold at which the minimum slope is reached
+
+I also add one summary statistic for the average approach:
+
++ the highest mean function value reached for any given number of functions
+
+by default we calculate these summary statistics for a function range from `floor( (2 * funcnum) / 10 )` to `2 * funcnum`
+
+so in this case for `r floor( (2 * funcnum) / 10 )` to `r 2 * funcnum` functions. 
+
+The parametrization for all but the number of functions is taken from above. However, if the distribution parameters have been adjusted (beyond the sole choice of the distribution) they need to be adjusted here, too.
+
+```{r, fig.height=10, fig.width = 10}
+
+FuncSeq <- seq(5, 25, 2)
+
+SumList <-  vector("list", 20 * length(FuncSeq))
+
+for (n in seq_along(SumList)) {
+  
+funcnum <- FuncSeq[ceiling(n/20)]
+
+FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+ AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = "av")
+
+# extract function names
+func.names <- as.character( unique( FuncMat$Functions))
+
+# add on the new (standardized) functions along with the averaged multifunctional index
+AvFunc <- cbind(AvFunc, getStdAndMeanFunctions(AvFunc, func.names))
+
+mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, prepend=c("Richness"), maxN=2)
+
+mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, coefVar="Richness")
+
+colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+
+SlSum <- SlopeSummary(mixedLinearSlopes)
+SlSum$nfunctions = funcnum
+SlSum$max_av = max(AvFunc$meanFunc)
+
+
+SumList[[n]] <- SlSum
+  
+}
+
+SumList <- lapply(SumList, function(x) lapply(x, function (y) min(y)) )
+SumList <- lapply(SumList, function(x) as.data.frame(x))
+SumList <- do.call("rbind", SumList)
+
+ESC <- ggplot(SumList, aes(x = nfunctions, y = (Estimate_sign_change)*100))+
+  geom_point(shape = 21, colour = "grey20", fill = NA, position = position_jitter(width = 0.1), size = 2)+
+  geom_smooth(method="lm", se = F, colour = "grey20", size = 0.7)+
+  labs(x = "Number of functions", y = "Threshold value before sign change")+
+  scale_y_continuous(limits = c(40,75))+
+  theme_bw()
+
+ESC
+
+MaxT <- ggplot(SumList, aes(x = nfunctions, y = (maximum)*100))+
+  geom_point()+
+  geom_smooth(method="lm", se = F, colour = "grey", size = 0.7)+
+  labs(x = "Number of functions", y = "Threshold value with maximum slope estimate")+
+  scale_y_continuous(limits = c(0,100))+
+  theme_bw()
+
+MinT <- ggplot(SumList, aes(x = nfunctions, y = (minimum)*100))+
+  geom_point()+
+  geom_smooth(method="lm", se = F, colour = "grey", size = 0.7)+
+  labs(x = "Number of functions", y = "Threshold value with minimum slope estimate")+
+  scale_y_continuous(limits = c(0,100))+
+  theme_bw() 
+
+MaxAv <- ggplot(SumList, aes(x = nfunctions, y = max_av))+
+  geom_point()+
+  geom_smooth(method="lm", se = F, colour = "grey", size = 0.7)+
+  labs(x = "Number of functions", y = "Maximum average function value")+
+  theme_bw() 
+
+grid.arrange(MaxT, MinT, ESC, MaxAv, ncol = 2)
+
+ggsave("Figure_2.pdf", ESC, width = 8,height = 6)
+
+
+```
+
