@@ -188,8 +188,7 @@ FunctionValue <- function(specnum = NULL, funcnum = NULL,
   }
   
   if(TRUE %in% c(SpecFunc$Funcval < 0)) {
-    stop("the specified distribution parameters resulted in negative function values.
-         Try changing the distribution parameters or try again. ")
+    SpecFunc$Funcval <- SpecFunc$Funcval + abs(min(SpecFunc$Funcval))
   }
   
   return(SpecFunc)
