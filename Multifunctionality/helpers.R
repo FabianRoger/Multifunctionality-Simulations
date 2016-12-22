@@ -1,0 +1,353 @@
+######## function definitions #############
+
+
+PossibleCombinations  <- function(specnum, maxrep) {
+  # Calculates all possible combinations at each richness level 
+  # from 1 to spec.num
+  # Calculates suggested replication at each richness level as follows:
+  # if possible combinations <= maxrep; suggested replication = all combinations
+  # if possible combinations > maxrep; suggested maxrep replications
+  # Calculates cumulative plotnumber
+  #
+  # Args:
+  #   spec.num: integer, positive number giving the number of species in the
+  #             species pool
+  #   maxrep:   integer, positive number giving the maximum numer of replicated communities per richness level
+  #
+  # Returns:
+  #   data.frame with four columns
+  #   $Richness: richness levels from 1:specnum
+  #   $numb.comb: number of possible combination at each Richness level
+  #   $nrep: suggested replication at each richness level
+  #   $sumrep: cummulative number of plots
+  
+  possible.comb <- data.frame(Richness = 1:specnum)
+  possible.comb$numb.com <- choose(specnum, possible.comb$Richness)
+  possible.comb$nrep <- possible.comb$numb.com
+  if (max( possible.comb$nrep) > maxrep) {
+    possible.comb[possible.comb$nrep > maxrep,]$nrep  <- maxrep
+  }
+  possible.comb$sumrep <- cumsum(possible.comb$nrep)
+  
+  return(possible.comb)
+  
+}
+
+########################################################################################
+
+SpeciesList <- function(specnum) {
+  # creates character vector with specnum species names. If specnum ≤ 26 Species are 
+  # named as A - Z, if specnum > 26, species are named as follows: 
+  # A_01, B_01 (...) Z_01, A_02, B_02 (...)
+  #
+  # Args:
+  #   specnum: integer, positive number giving the number of species to be named
+  #
+  # Returns: character vector with specnum species names
+  
+  L <- length(LETTERS)
+  NUM <- ceiling(specnum/L)
+  if (specnum <= L) {
+    spec.list <- LETTERS[1:specnum]
+  } else {
+    spec.list <- paste(LETTERS, rep(formatC(1:NUM, width=2, flag="0"), each=L),
+                       sep = "_")
+    spec.list <- spec.list[1:specnum]
+  }
+  
+  return(spec.list)
+  
+}
+
+########################################################################################
+
+FunctionList <- function(funcnum) {
+  # creates character vector with funcnam function names. Function are named as 
+  # follows: Func_01, Func_02 (...) 
+  #
+  # Args:
+  #   funcnum: integer, positive number giving the number of FGunctions to be named
+  #
+  # Returns: character vector with funcnam Function names
+  
+  func.list <- paste("Func", formatC(1:funcnum, width=2, flag="0"),sep = "_")
+  
+  return(func.list)
+  
+}
+
+########################################################################################
+
+SpeciesMatrix <- function(specnum, maxrep = 50) {
+  # creates a species matrix with specnum species.
+  # At each richness level, the replicates communities are all unique
+  # The species names are generated with SpeciesList() 
+  # and the experimental design is generated with the function PossibleCombinations()
+  #
+  #
+  # Args:
+  #   specnum: integer, positive number giving the number of species in the
+  #             species pool
+  #   maxrep: integer, positive number giving the maximum numer of replicated communities per richness level
+  #
+  # Returns:
+  #   Species matrix with with presence absence data for species in plots
+  #   rows are plots, species are column. Columnnames are species names, taken
+  #   from specnum. Number of richness levels and number of replication
+  #   per richness levels are taken from expdesign 
+  
+  spec <- SpeciesList(specnum) #list of species names
+  
+  expdesign <- PossibleCombinations( specnum, maxrep) #experimental design (number of replication per richness level)
+  
+  nplot <- sum(expdesign$nrep) #total number of replicates
+  
+  # empty species matrix
+  Spec.mat <- matrix( data = 0, nrow = nplot, ncol = specnum, 
+                      dimnames = list( c(1:nplot),spec))
+  
+  for (i in seq_along(expdesign$Richness)) { #fill species matrix with unique species combinations
+    
+    if (i == 1) { # fill monocultures
+      for (n in 1:specnum) {
+        Spec.mat[n,n]  <- 1
+        
+      }} else if (i < max(expdesign$Richness)) { # fill all other richness levels but highest
+        
+        
+        M <- matrix( data = sample(spec, i), nrow = i, ncol = expdesign$nrep[i])
+        M <- apply(M, 2, sort)
+        
+        for (n in 2: ncol(M)) { # create matrix with 
+          
+          next.spec <- sort(sample(spec, i))
+          
+          while( i %in% colSums(as.matrix(next.spec == M[, 1:(n-1)]))) {
+            
+            next.spec <- sort(sample(spec, i))
+            
+          }
+          
+          M[,n]<- next.spec
+          
+        }
+        
+        row.seq <- (expdesign$sumrep[i-1]+1) : expdesign$sumrep[i]
+        
+       
+        for(k in row.seq) {
+          Spec.mat[k, which(spec %in% M[, (k+1) - min(row.seq)])] <- 1
+        }
+        
+      } else {Spec.mat[nrow(Spec.mat), ] <- 1}
+  }
+        
+  
+  return(Spec.mat)
+  
+  }
+
+##################################################
+
+FunctionValue <- function(specnum = NULL, funcnum = NULL, 
+                          distribution = NULL, ...) {
+  # function that assigns N species function values for M functions
+  #
+  # Args:
+  #   specnum: number of species (numeric, integer)
+  #   funcnum: number of function
+  #   distribution: any of the distribution functions in the stats package
+  #                 given as character string (e.g. "rnorm"). 
+  #   ... further arguments to be passed to the distribution function
+  
+  # error handling
+  if (! distribution %in% ls("package:stats")) {
+    stop(" distribution must be one of the functions in the stats package.
+         see ?Distributions for options")
+  }
+  
+  distf <- get(distribution)
+  
+  Try <- try(distf(5,...))
+  
+  if(class(Try) == "try-error") {
+    stop ( paste("distribution parameters seem to be wrongly speciefied see ?",
+                 distribution," for help", sep=""))}
+  ###
+  
+    spec <- SpeciesList( specnum)
+
+    func <- FunctionList( funcnum)
+  
+  SpecFunc <- data.frame(Species = rep(spec,funcnum), 
+                         Functions = rep(func, each = specnum), 
+                         Funcval = NA)
+  
+  for (i in func) {
+    SpecFunc[SpecFunc$Functions == i,]$Funcval <- distf(specnum,...)
+  }
+  
+  if(TRUE %in% c(SpecFunc$Funcval < 0)) {
+    stop("the specified distribution parameters resulted in negative function values.
+         Try changing the distribution parameters or try again. ")
+  }
+  
+  return(SpecFunc)
+  
+  }
+
+
+##################################################
+
+AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "Func_01", selfac = 1,
+                            compfunc = "all", CF = 2, r = 0.25) {
+  # function to calculate the avreage function value of species
+  # mixtures. 
+  #
+  # Args:
+  #   SPM: a species matrix as prodcued by SpeciesMatrix(); if matrix is
+  #        not presence/absence, it is transformed to p/a internally
+  #   FUNC: a dataframe as produced by FunctionValue() giving the function 
+  #         values for each species in long format. Species names must match 
+  #         colnames of SPM. 
+  #   method: one of "average", "complementarity" or "selection", specifying 
+  #           how the mixture function should be calculated
+  #   CF: "complementarity factor" for method "complementarity". each function
+  #        value will be multiplied by CF * ( 1 - ( 1 - 1/CF ) * exp(1-Richness^r))
+  #        the function growth to CF as Richness -> inf
+  #   r: growthrate of amplification factor (how fast it growth to CF)
+  #   selfunc: "selection function", function whichs function values are taken 
+  #             to calculate the weighted mean for all functions
+  #   selfac: "selection factor": factor by which the weights will be amplified 
+  #   compfunc: if complementarity should only happen for some functions, the 
+  #             functions can be specified here. default is all. 
+  #
+  # Returns:
+  #   dataframe with Richness of each plot and average function value for each 
+  #   function
+  
+  # error handling
+  if (class(SPM) != "matrix" | is.numeric(SPM) != TRUE) {
+    stop("SPM must be a numeric matrix")
+  }
+  
+  if (NA %in% match(colnames(SPM), unique(FUNC$Species))) {
+    stop(" not all species in species matrix represented in function dataframe")
+  }
+  
+  spec <- colnames(SPM)
+  
+  specnum <- length(spec)
+  
+  # define function to be applied to each plot for method average or complementarity
+  
+  FUNC <- FUNC %>% spread(Functions, Funcval)
+  
+  if (is.na(pmatch(method, c("average", "complementarity"))) == FALSE) {
+    MeanFunc <- function(x) {
+      colMeans(FUNC[FUNC$Species %in% spec[which(x == 1)], ][,-1])
+    } 
+  }
+  
+  # define function to be applied to each plot for selection effect
+  
+  if (is.na(pmatch(method, "selection")) == FALSE) {
+    
+    spec.weights <- FUNC[, which(colnames(FUNC) == selfunc)]^selfac
+    
+    MeanFunc <- function(x) {
+      Weights <- spec.weights[which(x == 1)]
+      Weights <- Weights/sum(Weights)
+      colSums(FUNC[FUNC$Species %in% spec[which(x == 1)], ][,-1]*Weights)
+    } 
+  }
+  
+  
+  mean.functions <- t(apply(SPM, 1, MeanFunc))
+  
+  SPM <- as.data.frame(SPM)
+  SPM$Richness <- rowSums(SPM)
+  SPM <- cbind(SPM , mean.functions)
+  
+  # multiply with complementraity factor if method = "complementarity"
+  
+  if (is.na(pmatch(method, "complementarity")) == FALSE) {
+    
+    if (compfunc == "all") {
+      
+      SPM[ , ( specnum + 2) : ncol( SPM)] <- SPM[ , ( specnum + 2) : ncol( SPM)] * 
+        (CF * ( 1 - ( 1 - 1/CF ) * exp(1-SPM$Richness^r)))
+      
+    } else { SPM[ , which( colnames( SPM) %in% compfunc)] <- SPM[ , which( colnames( SPM) %in% compfunc)] *
+      (CF * ( 1 - ( 1 - 1/CF ) * exp(1-SPM$Richness^r)))}
+  }
+  
+  return(SPM)
+  
+}
+
+
+##################################################
+
+
+
+SlopeSummary <- function(MT) {
+  # function to find at which threshold the estimated slope
+  # reaches it's minimum
+  # reaches it's maximum 
+  # changes from positive to negative
+  #
+  # Args:
+  #   MT: a dataframe as produced by multifunc::getCoefTab that needs to contain at least three columns, 
+  #       one called "Estimate" that is taken as the column containing the slope estimates for each threshold,
+  #       one called "Std. Error" that is taken to contain the corresponding standard errors and one called
+  #       "thresholds" that contains the threshold levels. 
+  #   
+  #
+  # Returns:
+  #   named list containing the threshold level for which the sign change occours for both the estimate and the minimum estimate
+  #   the threshold is always the threshold before which the sign change has occured
+  
+  
+  ### error handling
+  if (class(MT) != "data.frame") {
+    stop("the function expects a dataframe containing at leat the following columns: 
+         `Estimate`, `Std. Error` and `thresholds`")
+  }
+  
+  
+  if (NA %in% match(c("Estimate", "Std. Error",  "thresholds"), colnames(MT))) {
+    stop("one or more of the columns `Estimate`, `Std. Error` and `thresholds` are missing form the dataframe")
+  }
+  ###
+  
+  #MT$min.est <- MT$Estimate - 1.96*MT$`Std. Error`
+  MT$est_sign_change <- "no"
+  #MT$min.est_sign_change <- "no"
+  
+  for (n in 2: nrow(MT) ){
+    ifelse( sum(MT$Estimate[ c( n-1, n)] >= 0) == 1, 
+            MT$est_sign_change[n] <- "yes",
+            MT$est_sign_change[n] <- "no")
+    
+    #ifelse( sum(MT$min.est[ c( n-1, n)] >= 0) == 1, 
+     #       MT$min.est_sign_change[n] <- "yes",
+      #      MT$min.est_sign_change[n] <- "no")
+  }
+  
+  MAX <- MT[ which(MT$Estimate == max(MT$Estimate)), ]$thresholds
+  MIN <- MT[ which(MT$Estimate == min(MT$Estimate)), ]$thresholds
+  
+  
+  Signchange.R <- list(maximum = MAX,
+                       minimum = MIN,
+                       Estimate_sign_change = MT[ MT$est_sign_change == "yes", ]$thresholds)#,
+                     #min.Estimate_sign_change = MT[ MT$min.est_sign_change == "yes", ]$thresholds)
+  
+  if(length(Signchange.R$Estimate_sign_change) == 0) {Signchange.R$Estimate_sign_change <- NA}
+ # if(length(Signchange.R$min.Estimate_sign_change) == 0) {Signchange.R$min.Estimate_sign_change <- NA}
+  
+  return(Signchange.R)
+}
+  
+
