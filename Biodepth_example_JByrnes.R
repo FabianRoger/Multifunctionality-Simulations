@@ -34,7 +34,7 @@ spIDX <- which(names(germany) %in% species) #in case we need these
 # SINGLE FUNCTION APPROACH #
 ############################
 
-germanyForPlotting<-melt(germany[,c(8,which(names(germany) %in% vars))], id.vars="Diversity")
+germanyForPlotting <- melt(germany[,c(8,which(names(germany) %in% vars))], id.vars="Diversity")
 germanyForPlotting$variable <- factor(germanyForPlotting$variable)
 
 #make the levels of the functions into something nice for plots 
@@ -112,9 +112,9 @@ gcPlot$percent<-paste(100*gcPlot$thresholds, "%", sep="")
 
 # plot 4 selected threshold values
 ggplot(gcPlot, aes(x=Diversity, y=funcMaxed))+
-  geom_point()+
+  geom_point(alpha = 0.2)+
   facet_wrap(~percent)+
-  stat_smooth(method="glm", family = quasipoisson(link="identity"),colour="red", lwd=1.2 )+
+  stat_smooth(method="lm")+
   labs(y = expression("Number of Functions" >= Threshold), x = ("Species Richness"))+
   theme_bw(base_size=15)
 
@@ -124,8 +124,7 @@ germanyThresh$percent <- 100*germanyThresh$thresholds
 ggplot(data=germanyThresh, aes(x=Diversity, y=funcMaxed, group=percent)) +
   ylab(expression("Number of Functions" >= Threshold)) +
   xlab("Species Richness") +
-  stat_smooth(method="glm", family=quasipoisson(link="identity"), lwd=0.8,
-              fill=NA, aes(color=percent)) +
+  stat_smooth(method="lm", se = F, aes(color=percent)) +
   theme_bw(base_size=14) +
   scale_color_gradient(name="Percent of \nMaximum", low="blue", high="red")
 
@@ -137,7 +136,7 @@ ggplot(germanyLinearSlopes, aes(x=thresholds)) +
                                  ymax=Estimate+1.96*germanyLinearSlopes[["Std. Error"]])) + 
   geom_point(aes(x=thresholds*100, y=Estimate)) +
   ylab("Change in Number of Functions per Addition of 1 Species\n") + xlab("\nThreshold (%)") +
-  stat_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
+  geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
   theme_bw(base_size=14)
 
 # highlight critical slopes
@@ -149,7 +148,7 @@ germanyThresh$IDX [which(germanyThresh$thresholds %in% c(germanIDX$Tmin, germanI
 ggplot(germanyThresh, aes(x=Diversity, y=funcMaxed, group=percent)) +
   ylab(expression("Number of Functions" >= Threshold)) +
   xlab("Species Richness") +
-  geom_smooth(method="glm", family=quasipoisson(link="identity"),
+  geom_smooth(method="lm", 
                 fill=NA, aes(color=percent, lwd=IDX)) + theme_bw(base_size=14) +
   scale_color_gradient(name="Percent of \nMaximum", low="blue", high="red") + 
   scale_size(range=c(0.3,5), guide="none") +
