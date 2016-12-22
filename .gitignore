@@ -1,3 +1,11 @@
-.Rproj.user
-.Rhistory
-.RData
+*.Rproj.user
+*.Rhistory
+*.RData
+*.pdf
+*.doc*
+*.key
+*.zip
+*.pages
+*.html
+*.eps
+.DS_Store
