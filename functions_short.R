@@ -188,6 +188,7 @@ FunctionValue <- function(specnum = NULL, funcnum = NULL,
   }
   
   if(TRUE %in% c(SpecFunc$Funcval < 0)) {
+    warning("negative function values were generated wherefore all values were shifted by abs(min(function value))")
     SpecFunc$Funcval <- SpecFunc$Funcval + abs(min(SpecFunc$Funcval))
   }
   
