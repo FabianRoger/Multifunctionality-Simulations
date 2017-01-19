@@ -1,0 +1,192 @@
+---
+title: "sensibility of multithreshold approach"
+output: html_notebook
+---
+
+```{r, echo = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+
+source("functions_short.R")
+```
+
+
+```{r}
+set.seed(999)
+
+specnum <- 15
+funcnum <- 9
+
+distribution = "rnorm"
+
+#if function values should be drawn from same distribution
+
+# if function values should be drawn form distributiuon with differnt means
+if(FALSE){
+FuncList <- list()
+Means <- seq(10, 40, len = funcnum)
+
+for (i in 1:funcnum){
+var <- paste("FuncMat", i, sep = "_")
+FuncList[[var]] <- FunctionValue(specnum,funcnum, distribution, mean = Means[[i]], sd = 2)  
+}
+
+FuncMat <- FuncList[[1]]
+
+func.names <- as.character( unique( FuncMat$Functions))
+
+for(n in seq_along(func.names)){
+  FuncMat[FuncMat$Functions == func.names[n], ]$Funcval <- FuncList[[n]][FuncList[[n]]$Functions == func.names[n], ]$Funcval
+}
+}
+
+# if function values should be drawn form same distribution
+if(TRUE){
+FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 30, sd = 2)  
+func.names <- as.character( unique( FuncMat$Functions))
+}
+
+spec.names <- as.character( unique( FuncMat$Species))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+```
+
+```{r}
+
+# standardize functions by maximum
+AvFunc_max <- AvFunc %>% 
+  mutate_at(vars(one_of(func.names)), function(x) {x / max(x)})
+
+# standardize functions between 0 and 1
+AvFunc_unit <- AvFunc %>% 
+   mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
+
+Av_list <- list(AvFunc_max = AvFunc_max,
+                AvFunc_unit = AvFunc_unit)
+
+RES_stand <- data.frame(thresholds = numeric(), 
+                   Estimate = numeric(),
+                   `Std. Error` = numeric(), 
+                   stand_method = character())
+
+
+for (i in seq_along(Av_list)) { #loop over all subsets of function of size 1:funcnum
+  
+  mixedThresh <- getFuncsMaxed(Av_list[[i]], func.names, threshmin=0.05, threshmax=0.99, prepend=c("Richness"), maxN=1)
+   
+  # if maximum funcitoninh should be calculated instead
+  
+  #mixedThresh <- mixedThresh %>% 
+  #  group_by(Richness, thresholds, thresh) %>% 
+  #  summarize(funcMaxed = max(funcMaxed)) %>% ungroup
+  
+  mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+                               coefVar="Richness")
+    
+  colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+    
+  temp <- mixedLinearSlopes %>% 
+      select(thresholds, Estimate, `Std. Error`) %>% 
+      mutate(stand_method = names(Av_list)[i])
+    
+    RES_stand <- rbind(RES_stand, temp)
+  }
+
+```
+
+
+```{r}
+
+STAND <- RES_stand %>% 
+  group_by(thresholds, stand_method) %>% 
+  mutate(CI_high = Estimate + 1.96 * `Std. Error`,
+            CI_low = Estimate - 1.96 * `Std. Error`) %>% 
+ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = as.factor(stand_method)), colour = NA, alpha = 0.4)+
+  geom_line( aes(colour = as.factor(stand_method)), lwd = 0.8) +
+  ylab("Slope estimate") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=0.5, linetype=2) + 
+  theme_bw(base_size=15)+
+  scale_fill_brewer(guide = FALSE, palette = "Set1")+
+  scale_color_brewer(guide = guide_legend(title = paste("Number of species", paste("(", funcnum, " functions)", sep = ""), sep = "\n")),
+                     palette = "Set1")+
+  theme_classic()+
+  theme(legend.position = "none")
+  
+  
+STAND
+```
+
+
+
+```{r}
+
+Hist_orig <- AvFunc %>% 
+  select(one_of(func.names)) %>% 
+  gather(Func, value) %>% 
+  ggplot(., aes(x = value, colour = Func))+
+  geom_density(position="identity", fill = NA)+
+  scale_colour_brewer( palette = "Greys")+
+  theme_classic()+
+  theme(legend.position = "none")
+
+Hist_orig
+
+```
+
+
+```{r}
+
+Hist_unit <- AvFunc_unit %>% 
+  select(one_of(func.names)) %>% 
+  gather(Func, value) %>% 
+  ggplot(., aes(x = value, colour = Func))+
+  geom_density(position="identity", fill = NA)+
+  geom_vline(aes(xintercept = mean(value)), colour = "black", linetype = "dashed")+
+  scale_colour_brewer( palette = 1)+
+  theme_classic()+
+  theme(legend.position = "none")
+
+Hist_unit
+
+```
+
+
+```{r}
+
+Hist_max <- AvFunc_max %>% 
+  select(one_of(func.names)) %>% 
+  gather(Func, value) %>% 
+  ggplot(., aes(x = value, colour = Func))+
+  geom_density(position="identity", fill = NA)+
+  geom_vline(aes(xintercept = mean(value)), colour = "black", linetype = "dashed")+
+  scale_colour_brewer( palette = 8)+
+  scale_x_continuous(limits = c(0,1))+
+  theme_classic()+
+  theme(legend.position = "none")
+
+Hist_max
+
+```
+
+
+```{r}
+
+ggdraw() +
+  draw_plot(STAND, 0, .5, 1, .5) +
+  draw_plot(Hist_orig, 0, 0, 1/3, 0.5) +
+  draw_plot(Hist_unit, 1/3, 0, 1/3, 0.5)+
+  draw_plot(Hist_max, 2/3, 0, 1/3, 0.5)
+```
+
