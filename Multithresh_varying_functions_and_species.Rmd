@@ -1,0 +1,177 @@
+---
+title: "Multithreshold approach with varying number of functions and species"
+output: html_notebook
+---
+
+
+```{r, echo = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+
+source("functions_short.R")
+```
+
+
+```{r}
+set.seed(777)
+
+specnum <- 15
+funcnum <- 15
+
+distribution = "runif"
+
+FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
+
+func.names <- as.character( unique( FuncMat$Functions))
+spec.names <- as.character( unique( FuncMat$Species))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+# standardize functions
+AvFunc_func <- AvFunc %>% 
+  mutate_at(vars(one_of(func.names)), function(x) {x / max(x)})
+```
+
+
+```{r}
+
+RES_func <- data.frame(thresholds = numeric(), 
+                   Estimate = numeric(), 
+                   nfunc = numeric(),
+                   func_comb = numeric())
+
+
+for (i in c(3, ceiling(funcnum/2), funcnum)) { #loop over all subsets of function of size 1:funcnum
+
+  # all poosibel combination of i out of funcnum functions
+  func_comb <- combn(func.names, i)
+  
+  # sample 50 random funciton combinations if more than 50 possible combinations
+  if(ncol(func_comb) > 50) {
+    func_comb <- func_comb[, sample(c(1:ncol(func_comb)), 50)]
+  }
+
+  for ( k  in seq_len(ncol(func_comb))) { #loop over all function combinations of size i
+    
+    mixedThresh <- getFuncsMaxed(AvFunc, func_comb[ ,k], threshmin=0.05, threshmax=0.99, prepend=c("Richness"), maxN=1)
+   
+    # if maximum funcitoninh should be calculated instead
+    
+    #mixedThresh <- mixedThresh %>% 
+    #  group_by(Richness, thresholds, thresh) %>% 
+    #  summarize(funcMaxed = max(funcMaxed)) %>% ungroup
+    
+  
+    mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+                               coefVar="Richness")
+    
+    colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+    
+    temp <- mixedLinearSlopes %>% 
+      select(thresholds, Estimate) %>% 
+      mutate(nfunc = i) %>% 
+      mutate(func_comb = k)
+    
+    RES_func <- rbind(RES_func, temp)
+  }
+  }
+
+```
+
+```{r}
+
+FUNC <- RES_func %>% 
+  group_by(thresholds, nfunc) %>% 
+  summarise(mean_Estimate = mean(Estimate),
+            CI_high = mean(Estimate) + 1.96 * (sd(Estimate)/sqrt(n())),
+            CI_low = mean(Estimate) - 1.96 * (sd(Estimate)/sqrt(n()))) %>% 
+ggplot(., aes(x=thresholds*100, y=mean_Estimate), size = 0.5, alpha = 0.3)+
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = as.factor(nfunc)), colour = NA, alpha = 0.4)+
+  geom_line( aes(colour = as.factor(nfunc)), lwd = 0.8) +
+  ylab("Slope estimate") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=0.5, linetype=2) + 
+  theme_bw(base_size=15)+
+  scale_fill_brewer(guide = FALSE, palette = "Set1")+
+  scale_color_brewer(guide = guide_legend(title = paste("Number of functions", paste("(", specnum, " species)", sep = ""), sep = "\n")),
+                     palette = "Set1")+
+  theme_classic()+
+  theme(legend.position = "bottom")
+  
+FUNC
+```
+
+# varying number of species
+
+```{r}
+
+RES_spec <- data.frame(thresholds = numeric(), 
+                   Estimate = numeric(),
+                   `Std. Error` = numeric(), 
+                   nspec = numeric())
+
+
+for (i in c(3, ceiling(specnum/2), specnum)) { #loop over all subsets of function of size 1:funcnum
+
+  #subset for number of species to include
+  AvFunc_spec <- filter(AvFunc, Richness %in% 1:i) 
+  
+  mixedThresh <- getFuncsMaxed(AvFunc_spec, func.names, threshmin=0.05, threshmax=0.99, prepend=c("Richness"), maxN=1)
+   
+  # if maximum funcitoninh should be calculated instead
+  
+  #mixedThresh <- mixedThresh %>% 
+  #  group_by(Richness, thresholds, thresh) %>% 
+  #  summarize(funcMaxed = max(funcMaxed)) %>% ungroup
+  
+  mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+                               coefVar="Richness")
+    
+  colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+    
+  temp <- mixedLinearSlopes %>% 
+      select(thresholds, Estimate, `Std. Error`) %>% 
+      mutate(nspec = i)
+    
+    RES_spec <- rbind(RES_spec, temp)
+  }
+
+```
+
+
+```{r}
+
+SPEC <- RES_spec %>% 
+  group_by(thresholds, nspec) %>% 
+  mutate(CI_high = Estimate + 1.96 * `Std. Error`,
+            CI_low = Estimate - 1.96 * `Std. Error`) %>% 
+ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = as.factor(nspec)), colour = NA, alpha = 0.4)+
+  geom_line( aes(colour = as.factor(nspec)), lwd = 0.8) +
+  ylab("Slope estimate") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=0.5, linetype=2) + 
+  theme_bw(base_size=15)+
+  scale_fill_brewer(guide = FALSE, palette = "Set1")+
+  scale_color_brewer(guide = guide_legend(title = paste("Number of species", paste("(", funcnum, " functions)", sep = ""), sep = "\n")),
+                     palette = "Set1")+
+  theme_classic()+
+  theme(legend.position = "bottom")
+  
+SPEC
+```
+
+
+```{r}
+grid.arrange(FUNC,SPEC, nrow = 1)
+
+```
+
