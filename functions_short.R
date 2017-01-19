@@ -287,7 +287,7 @@ AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "F 1", self
   
   if (is.na(pmatch(method, "complementarity")) == FALSE) {
     
-    if (compfunc == "all") {
+    if ("all" %in% compfunc) {
       
       SPM[ , ( specnum + 2) : ncol( SPM)] <- SPM[ , ( specnum + 2) : ncol( SPM)] * 
         (CF * ( 1 - ( 1 - 1/CF ) * exp(1-SPM$Richness^r)))
