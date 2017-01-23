@@ -9,29 +9,76 @@ library(tidyr)
 library(ggplot2)
 library(gridExtra)
 library(cowplot)
+library(RColorBrewer)
 
 source("functions_short.R")
 ```
 
+```{r}
+# choose model (by setting vlaue to TRUE)
+
+Single_dist <- FALSE
+Multi_dist <- FALSE
+Biodepth_data <- TRUE
+
+if(sum(Single_dist,Multi_dist,Biodepth_data) != 1){stop("please choose one (and only one) scenario by setting the value to TRUE")}
+
+```
 
 ```{r}
+
+if(Single_dist) {
+  
 set.seed(999)
 
 specnum <- 15
 funcnum <- 9
 
-distribution = "rnorm"
+distribution = "rnorm" #choose your distribution (one off ?Distributions)
 
-#if function values should be drawn from same distribution
+FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 30, sd = 2)  
+func.names <- as.character( unique( FuncMat$Functions))
+
+spec.names <- as.character( unique( FuncMat$Species))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+}
+  
+```
+
+```{r}
+
+if(Multi_dist) {
+  
+set.seed(999)
+
+specnum <- 15
+funcnum <- 9
+
+distribution = "rnorm" #choose your distribution (one off ?Distributions)
+
 
 # if function values should be drawn form distributiuon with differnt means
-if(FALSE){
+
 FuncList <- list()
-Means <- seq(10, 40, len = funcnum)
+
+par1 <- seq(50, 100, len = funcnum) #parameter values for functions 1:nfunc (first parameter)
+par2 <- seq(15,3, len = funcnum) #parameter values for functions 1:nfunc (second parameter - if needed)
 
 for (i in 1:funcnum){
 var <- paste("FuncMat", i, sep = "_")
-FuncList[[var]] <- FunctionValue(specnum,funcnum, distribution, mean = Means[[i]], sd = 2)  
+
+# you have to name the parameters according to your chosen distribution
+FuncList[[var]] <- FunctionValue(specnum,funcnum, distribution, mean = par1[[i]], sd = par2[[i]])  
 }
 
 FuncMat <- FuncList[[1]]
@@ -40,13 +87,6 @@ func.names <- as.character( unique( FuncMat$Functions))
 
 for(n in seq_along(func.names)){
   FuncMat[FuncMat$Functions == func.names[n], ]$Funcval <- FuncList[[n]][FuncList[[n]]$Functions == func.names[n], ]$Funcval
-}
-}
-
-# if function values should be drawn form same distribution
-if(TRUE){
-FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 30, sd = 2)  
-func.names <- as.character( unique( FuncMat$Functions))
 }
 
 spec.names <- as.character( unique( FuncMat$Species))
@@ -60,7 +100,61 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
                           CF = CF, 
                           compfunc = compfunc,
                           r = r)
+}
 ```
+
+
+
+
+```{r}
+
+if(Biodepth_data) {
+
+data("all_biodepth")
+  
+#choose Location
+  # (one off "Germany" "Portugal" "Switzerland" "Greece" "Ireland" "Sweden" "Sheffield" "Silwood" )
+  
+  Location <- "Portugal"
+
+biodepth_func <- 
+  all_biodepth %>% 
+  gather("species", "p_a", 26:ncol(.)) %>% 
+  filter(p_a == 1) %>% 
+  filter(Diversity == 1) %>% 
+  filter(location == Location) %>% 
+  select(species, 15:25) %>% 
+  select_if(function(col) sum(is.na(col)) <= floor(0.2*length(col))) %>% #exclude functions with > 20% NAs
+  na.omit() %>% #exclude species with missing functio values
+  group_by(species) %>% 
+  summarise_all(function(x) mean(x, na.rm = T)) %>% 
+  rename("Species" = species)
+
+specnum <- nrow(biodepth_func)
+spec.names <- biodepth_func$Species
+
+
+funcnum <- ncol(biodepth_func)-1
+
+
+FuncMat <- gather(biodepth_func, Functions, Funcval, -Species)
+func.names <- as.character( unique( FuncMat$Functions))
+
+SpecMat <- SpeciesMatrix(specnum, maxrep = 500)
+dimnames(SpecMat)[[2]] <- spec.names
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+}
+
+```
+
 
 ```{r}
 
@@ -131,12 +225,14 @@ STAND
 
 ```{r}
 
+get_colours <- colorRampPalette(brewer.pal(9, "Greys"))
+
 Hist_orig <- AvFunc %>% 
   select(one_of(func.names)) %>% 
   gather(Func, value) %>% 
   ggplot(.)+
   geom_density(aes(x = value,y =..density.., colour = Func), position="identity")+
-  scale_colour_brewer( palette = "Greys")+
+  scale_colour_manual( values = get_colours(funcnum))+
   theme_classic()+
   theme(legend.position = "none") +
   labs(x = "Simulated function values", y = "Density")
@@ -158,7 +254,9 @@ Hist_unit <- AvFunc_unit %>%
   summarize(maxD = max(density(value)$y)) %>% 
   ungroup %>% 
   summarize(maxD = max(maxD)) %>% as.numeric()
-  
+
+get_colours <- colorRampPalette(brewer.pal(9, "Blues"))
+    
 Hist_unit_gg <- ggplot(Hist_unit)+
   geom_density(aes(x = value,y =..density.., colour = Func), position="identity")+
   geom_vline(aes(xintercept = mean(value)), colour = "black", linetype = "dashed")+
@@ -166,7 +264,7 @@ Hist_unit_gg <- ggplot(Hist_unit)+
            label = "f(x) == frac(x - plain(min)(x), plain(max)(x) - plain(min)(x))", 
            parse=T, size = 2.5, alpha = 0.8)+
   geom_vline(aes(xintercept = mean(value)), colour = "black", linetype = "dashed")+
-  scale_colour_brewer( palette = 1)+
+  scale_colour_manual(values = get_colours(funcnum))+
   theme_classic()+
   theme(legend.position = "none")+
   labs(x = "Scaled between [0,1]", y = "Density")
@@ -187,6 +285,8 @@ maxD <- Hist_max %>%
   summarize(maxD = max(density(value)$y)) %>% 
   ungroup %>% 
   summarize(maxD = max(maxD)) %>% as.numeric()
+
+get_colours <- colorRampPalette(brewer.pal(9, "Reds"))
   
 Hist_max_gg <- ggplot(Hist_max)+
   geom_density(aes(x = value,y =..density.., colour = Func), position="identity")+
@@ -194,7 +294,7 @@ Hist_max_gg <- ggplot(Hist_max)+
   annotate("label", x = 0.4, y = 0.8*maxD, 
            label = "f(x) == frac(x , plain(max)(x))", 
            parse=T, size = 2.5)+
-  scale_colour_brewer( palette = 8)+
+  scale_colour_manual(values = get_colours(funcnum))+
   scale_x_continuous(limits = c(0,1))+
   theme_classic()+
   theme(legend.position = "none")+
