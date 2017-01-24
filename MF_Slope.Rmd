@@ -26,7 +26,7 @@ func.names <- as.character( unique( FuncMat$Functions))
 
 SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
 
-method = "comp"
+#method = "comp"
 CF = 3
 r = 0.25
 ```
@@ -40,11 +40,17 @@ Slope_res <- data.frame(Estimate = numeric(),
                         nfunc = numeric(),
                         ncomp = numeric())
 
-for (l in seq_len(funcnum)) {
+for (l in 0:funcnum) {
   
 set.seed(999)
-  
-compfunc = func.names[1:l]
+
+  if(l == 0) {
+    method = "av"
+  }  else {
+    method = "comp"
+    compfunc = func.names[1:l]
+  }
+
 
 AvFunc <- AverageFunction(SpecMat, FuncMat,
                           method = method, 
@@ -92,7 +98,7 @@ for (i in seq_len(funcnum)) { #loop over all subsets of function of size 1:funcn
 
 ```{r, warnings = F}
 Slope_res %>% 
-  filter(ncomp %in% c(1,ceiling(funcnum/2),funcnum)) %>% 
+  filter(ncomp %in% c(0,ceiling(funcnum/3),2*ceiling(funcnum/3),funcnum)) %>% 
   ggplot(aes(x = nfunc, y = Estimate, colour = as.factor(ncomp)))+
   geom_point(position = position_jitterdodge(jitter.width = 0.2, jitter.height = 0, dodge.width = 0.75),
              alpha = 0.5, shape = 21)+
