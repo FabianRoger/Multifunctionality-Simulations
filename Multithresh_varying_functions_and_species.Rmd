@@ -18,7 +18,7 @@ source("functions_short.R")
 set.seed(777)
 
 specnum <- 15
-funcnum <- 15
+funcnum <- 9
 
 distribution = "runif"
 
@@ -51,7 +51,7 @@ RES_func <- data.frame(thresholds = numeric(),
                    func_comb = numeric())
 
 
-for (i in c(3, ceiling(funcnum/2), funcnum)) { #loop over all subsets of function of size 1:funcnum
+for (i in c(ceiling(funcnum/3), 2*ceiling(funcnum/3), funcnum)) { #loop over all subsets of function of size 1:funcnum
 
   # all poosibel combination of i out of funcnum functions
   func_comb <- combn(func.names, i)
@@ -105,7 +105,8 @@ ggplot(., aes(x=thresholds*100, y=mean_Estimate), size = 0.5, alpha = 0.3)+
   scale_color_brewer(guide = guide_legend(title = paste("Number of functions", paste("(", specnum, " species)", sep = ""), sep = "\n")),
                      palette = "Set1")+
   theme_classic()+
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom")+
+  scale_y_continuous(limits = c(-0.45, 0.45)) 
   
 FUNC
 ```
@@ -120,7 +121,7 @@ RES_spec <- data.frame(thresholds = numeric(),
                    nspec = numeric())
 
 
-for (i in c(3, ceiling(specnum/2), specnum)) { #loop over all subsets of function of size 1:funcnum
+for (i in c(6, 9, specnum)) { #loop over all subsets of function of size 1:funcnum
 
   #subset for number of species to include
   AvFunc_spec <- filter(AvFunc, Richness %in% 1:i) 
@@ -164,7 +165,8 @@ ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
   scale_color_brewer(guide = guide_legend(title = paste("Number of species", paste("(", funcnum, " functions)", sep = ""), sep = "\n")),
                      palette = "Set1")+
   theme_classic()+
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom")+
+  scale_y_continuous(limits = c(-0.45, 0.45)) 
   
 SPEC
 ```
