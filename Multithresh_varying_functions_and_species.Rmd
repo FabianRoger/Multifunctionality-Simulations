@@ -3,6 +3,9 @@ title: "Multithreshold approach with varying number of functions and species"
 output: html_notebook
 ---
 
+This script produces:
+
++ Figure 4
 
 ```{r, echo = FALSE}
 library(dplyr)
