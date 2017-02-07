@@ -5,6 +5,10 @@ output:
   html_document: default
 ---
 
+This script produces:
+
++ Figure 3
+
 ```{r, echo = FALSE}
 library(dplyr)
 library(tidyr)
