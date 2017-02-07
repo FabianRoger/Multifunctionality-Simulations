@@ -3,7 +3,13 @@ title: "sensibility of multithreshold approach"
 output: html_notebook
 ---
 
+This script produces:
+
++ Figure 5
++ Figure S1
+
 ```{r, echo = FALSE}
+library(multifunc) #make sure that you don't have dplyr allready loaded otherwise the code will fail because of name conflicts
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -17,13 +23,29 @@ source("functions_short.R")
 ```{r}
 # choose model (by setting vlaue to TRUE)
 
-Single_dist <- FALSE
+Single_dist <- TRUE #produces Figure S1
 Multi_dist <- FALSE
-Biodepth_data <- TRUE
+Biodepth_data <- FALSE #produces Figure 5
+Biodepth_sim <- FALSE
 
-if(sum(Single_dist,Multi_dist,Biodepth_data) != 1){stop("please choose one (and only one) scenario by setting the value to TRUE")}
+if(sum(Single_dist,Multi_dist,Biodepth_data, Biodepth_sim) != 1){stop("please choose one (and only one) scenario by setting the value to TRUE")}
 
 ```
+
+
+```{r}
+if(sum(Biodepth_data, Biodepth_sim) == 1) {
+  
+  data("all_biodepth")
+  
+#choose Location (one off "Germany" "Portugal" "Switzerland" "Greece" "Ireland" "Sweden" "Sheffield" "Silwood" )
+  
+  Location <- "Germany"
+  
+  }
+
+```
+
 
 ```{r}
 
@@ -36,7 +58,7 @@ funcnum <- 9
 
 distribution = "rnorm" #choose your distribution (one off ?Distributions)
 
-FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 30, sd = 2)  
+FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 30, sd = 6)  
 func.names <- as.character( unique( FuncMat$Functions))
 
 spec.names <- as.character( unique( FuncMat$Species))
@@ -110,13 +132,8 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 
 if(Biodepth_data) {
 
-data("all_biodepth")
+  set.seed(999)
   
-#choose Location
-  # (one off "Germany" "Portugal" "Switzerland" "Greece" "Ireland" "Sweden" "Sheffield" "Silwood" )
-  
-  Location <- "Portugal"
-
 biodepth_func <- 
   all_biodepth %>% 
   gather("species", "p_a", 26:ncol(.)) %>% 
@@ -125,7 +142,7 @@ biodepth_func <-
   filter(location == Location) %>% 
   select(species, 15:25) %>% 
   select_if(function(col) sum(is.na(col)) <= floor(0.2*length(col))) %>% #exclude functions with > 20% NAs
-  na.omit() %>% #exclude species with missing functio values
+  na.omit() %>% #exclude species with missing function values
   group_by(species) %>% 
   summarise_all(function(x) mean(x, na.rm = T)) %>% 
   rename("Species" = species)
@@ -151,6 +168,72 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
                           compfunc = compfunc,
                           r = r)
 
+}
+
+```
+
+
+
+```{r}
+
+if(Biodepth_sim) {
+
+  set.seed(999)
+
+biodepth_func <- 
+  all_biodepth %>% 
+  gather("species", "p_a", 26:ncol(.)) %>% 
+  filter(p_a == 1) %>% 
+  filter(Diversity == 1) %>% 
+  filter(location == Location) %T>% 
+  assign('Loc_sub', ., envir = .GlobalEnv) %>% 
+  select(species, 15:25) %>% 
+  select_if(function(col) sum(is.na(col)) <= floor(0.2*length(col))) %>% #exclude functions with > 20% NAs
+  gather(Function, value, -species) %>% 
+  group_by(Function) %>% 
+  summarise(mean_func = mean(value, na.rm = T),
+            sd_func = sd(value, na.rm = T))
+
+spec.names <- unique(Loc_sub$species)
+specnum <- length(spec.names)
+
+funcnum <- nrow(biodepth_func)
+
+distribution = "rnorm" #choose your distribution (one off ?Distributions)
+
+# if function values should be drawn form distributiuon with differnt means
+
+FuncList <- list()
+
+par1 <- biodepth_func$mean_func #parameter values for functions 1:nfunc (first parameter)
+par2 <- biodepth_func$sd_func #parameter values for functions 1:nfunc (second parameter - if needed)
+
+for (i in 1:funcnum){
+var <- paste("FuncMat", i, sep = "_")
+
+# you have to name the parameters according to your chosen distribution
+FuncList[[var]] <- FunctionValue(specnum,funcnum, distribution, mean = par1[[i]], sd = par2[[i]])  
+}
+
+FuncMat <- FuncList[[1]]
+
+func.names <- as.character( unique( FuncMat$Functions))
+
+for(n in seq_along(func.names)){
+  FuncMat[FuncMat$Functions == func.names[n], ]$Funcval <- FuncList[[n]][FuncList[[n]]$Functions == func.names[n], ]$Funcval
+}
+
+spec.names <- as.character( unique( FuncMat$Species))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
 }
 
 ```
@@ -305,11 +388,18 @@ Hist_max_gg
 
 
 ```{r}
-
-ggdraw() +
+if(sum(Biodepth_data + Biodepth_sim) ==1) {
+  ggdraw() +
+  draw_plot(STAND, 0, .5, 1, .5) +
+  draw_plot(Hist_unit_gg, 0, 0, 0.5, 0.5)+
+  draw_plot(Hist_max_gg, 0.5, 0, 0.5, 0.5)+ ggtitle(paste(Location, "simulated"))
+} else {
+  ggdraw() +
   draw_plot(STAND, 0, .5, 1, .5) +
   draw_plot(Hist_orig, 0, 0, 1/3, 0.5) +
   draw_plot(Hist_unit_gg, 1/3, 0, 1/3, 0.5)+
   draw_plot(Hist_max_gg, 2/3, 0, 1/3, 0.5)
+}
+
 ```
 
