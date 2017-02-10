@@ -24,6 +24,8 @@ From the predefined set of functions we draw all possible sub-sets of function c
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+
+source("Multifunc_simulations_functions.R")
 ```
 
 You can set the same parameters as in most other simulations:
@@ -42,8 +44,6 @@ additional parameters for `method = comp`:
 `compfunc` is set automatically during the simulation
 
 ```{r, "function values"}
-source("functions_short.R")
-
 specnum <- 12
 funcnum <- 9
 

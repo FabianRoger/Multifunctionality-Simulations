@@ -34,7 +34,7 @@ library(gridExtra)
 library(cowplot)
 library(RColorBrewer)
 
-source("functions_short.R")
+source("Multifunc_simulations_functions.R")
 ```
 
 ###choose simulation

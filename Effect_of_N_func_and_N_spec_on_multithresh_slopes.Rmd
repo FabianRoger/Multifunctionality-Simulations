@@ -25,7 +25,7 @@ library(tidyr)
 library(ggplot2)
 library(cowplot)
 
-source("functions_short.R")
+source("Multifunc_simulations_functions.R")
 ```
 
 # simulate full diveristy experiment
