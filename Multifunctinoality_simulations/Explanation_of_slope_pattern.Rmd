@@ -1,0 +1,236 @@
+---
+title: "Multifunctionality Simulations"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+```
+
+This script produces:
+
++ Figure 5 for Box 2
+
+This script sets up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. 
+
+
+
+```{r, echo = FALSE, "load packages"}
+library(multifunc)
+library(ggplot2)
+library(Cairo)
+library(cowplot)
+library(dplyr)
+library(tidyr)
+
+source("Multifunc_simulations_functions.R")
+```
+
+
+### Defining species - function matrix
+
+You can set the same parameters as in most other simulations:
+
++ `distribution` : the distribution function. The names of the parameters must be changed accordingly in `FunctionValue()`
++ `specnum` : the number of species
++ `funcnum` : the number of functions 
+
+`method` can be chosen but will produce unexpected results as the number will not match up any more because the average function value in the tile plot is calculated without taking complementarity into account. 
+
+Additional parameters for `method = comp`:
+
++ `CF` : maximum complementarity factor 
++ `compfunc` : which functions should experience complementarity (`all` or any combination of `func.names`)
++ `r` : the 'growth-rate' of the complementarity factor
+
+```{r, "funcmat"}
+set.seed(794)
+
+specnum <- 12
+funcnum <- 10
+
+distribution = "runif"
+
+maxrep <- choose(specnum, floor(specnum/2))
+#maxrep <- 500
+
+# create function matrix
+FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0.1, max = 1)
+```
+
+### Making tile plot for standardized and mean function values by species
+
+(Make sure to choose same standardization in this chunk and in the next chunk.)
+
+```{r, "tileplot"}
+## choose same standardization as below
+Tile_mat <- FuncMat %>%
+  group_by(Functions) %>%
+ # mutate(Funcval = Funcval/max(Funcval))
+  mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval)))
+  
+Tile_mat <- Tile_mat %>% group_by(Functions) %>% 
+  summarise(Funcval = mean(Funcval)) %>% 
+  mutate(Species = "all") %>%
+  rbind(., as.data.frame(Tile_mat)) %>% 
+  mutate(Species = factor(Species, levels = c(LETTERS[1:specnum], "all"))) 
+
+Func_order <- Tile_mat %>% filter(Species == "all") %>% arrange(-Funcval) %>% select(Functions) %>% unlist
+
+col <- colorRampPalette(c("#FFFFFF", "#D1E5F0", "#92C5DE", "#4393C3", "#2166AC", "#053061"))
+
+Tile <- 
+  Tile_mat %>% 
+  mutate(Functions = factor(Functions, level = Func_order, label = paste("F", funcnum : 1, sep = " "))) %>% 
+  ggplot(., aes(Species, Functions))+
+  geom_tile(colour = "black", size = 0.1, aes(fill = as.factor(Funcval)))+
+  #geom_point (aes(size = Funcval, colour = as.factor(Funcval)))+
+  geom_text(aes(x = Species, y = Functions, label = signif(Funcval,2)*100), size = 4, colour = "#323232")+
+  geom_vline(aes(xintercept = 15.5), colour = "white") +
+  scale_fill_manual(values = col(length(Tile_mat$Funcval)))+
+  #scale_size_area(limits = c(0,1), max_size = 12)+
+  theme_bw(base_size=15)+
+  theme(legend.position = "none")
+
+Tile
+
+```
+
+### Calculating and plotting the slopes between monculture and full mixture
+
+(Make sure to choose same standardization in this chunk as in the previous chunk.)
+
+```{r, "slopes"}
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
+
+#select method and additional parameters if appropriate by setting the `if` statement to `TRUE`
+
+if (TRUE) {method = "av"}
+
+if (FALSE) {method = "comp"
+            CF = 3
+              compfunc = c("F 1", "F 6")
+              r = 0.25}
+
+#Average function
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+### standardize functions ###
+
+# extract function names
+func.names <- as.character( unique( FuncMat$Functions))
+
+# standardize between 0 and 1
+AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
+
+# alternative standardize by maximum
+# AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
+
+# add on the new (standardized) functions along with the averaged multifunctional index
+AvFunc$meanFunction <- rowMeans(AvFunc[,func.names])
+
+
+# calculate number of functions ≥ threshold for all thresholds 
+# slope are calculated for monoculture and full mixture only
+mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05,
+                             threshmax=0.99, threshstep = 0.001,
+                             prepend=c("Richness"), maxN=1)
+
+# subset mixedThres for only monoculure and full mixture
+mixedThresh_Sl <- 
+  mixedThresh %>% 
+  filter(Richness %in% c(1,max(Richness))) %>% 
+  group_by(thresholds, Richness) %>% 
+  summarize(funcMaxed = mean(funcMaxed)) %>% 
+  mutate(prct = paste(thresholds * 100, "%")) %>% 
+  group_by(prct) %>% 
+  mutate(mixFuncMax = funcMaxed[2]) 
+
+Thresh_annot <- mixedThresh_Sl %>% 
+  filter(Richness == 1) %>% 
+  filter(prct %in% paste(seq(5,95,10), "%", sep = " "))
+    
+patterexp1 <-
+  ggplot(mixedThresh_Sl, aes(x = Richness, y = funcMaxed, colour = as.factor(mixFuncMax)))+
+  geom_point()+
+  geom_line(aes(group = thresholds))+
+  geom_text(data = Thresh_annot, aes(x = 0, y = funcMaxed, label = prct), colour = "black")+
+  labs(x = "Species richness", y = "Number of function ≥ threshold")+
+  scale_colour_manual(values = rep(c("#377eb8", "#4daf4a", "#e41a1c"), funcnum))+
+  scale_x_continuous(breaks = c(1,specnum), limits = c(-0.5, specnum))+
+  scale_y_continuous(breaks = seq(0,funcnum,1), position = "right")+
+  theme_bw(base_size = 15)+
+  theme(legend.position = "none")
+
+patterexp1
+```
+
+
+### Calculating and plotting the multithreshold approach
+
+The slopes are the direct slopes between the monoculture values and the full mixture values, disregarding intermediate diversity levels.
+
+```{r, "multithresh"}
+mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh_Sl, 
+                               coefVar="Richness")
+
+colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+
+MixFuncVal <- Tile_mat %>% filter(Species == "all") %>% select(Funcval) %>% unique %>% round(.,2) %>% unlist
+MixFuncVal_slope <- mixedLinearSlopes[match(round(MixFuncVal,2), round(mixedLinearSlopes$thresholds,2)),]$Estimate
+
+labelDF <- data.frame(label = round(MixFuncVal,2)*100,
+                      y = MixFuncVal_slope,
+                      x = ifelse(MixFuncVal_slope > 0, MixFuncVal*100 + 6, MixFuncVal*100 - 6)) %>% 
+  distinct()
+  
+
+
+patterexp2 <- 
+mixedThresh_Sl %>% 
+select(thresholds, mixFuncMax) %>% 
+  left_join(mixedLinearSlopes) %>% 
+  ggplot(., aes(x=thresholds)) +
+  geom_point(aes(x=thresholds*100, y=Estimate, colour = as.factor(mixFuncMax)))+
+  #geom_vline(aes(xintercept = MixFuncVal*100))+
+  annotate("segment", x = MixFuncVal*100,xend = MixFuncVal*100, y = rep(0, funcnum),
+           yend = MixFuncVal_slope,linetype = "dashed", size = 0.2)+
+  geom_text(data = labelDF, aes( x = x, y = y, label = label))+
+  ylab("Slopes") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
+  theme_bw(base_size=15)+
+  scale_colour_manual(values = rep(c("#377eb8", "#4daf4a", "#e41a1c"), funcnum))+
+  scale_y_continuous(position = "right")+
+theme(legend.position = "none")
+
+
+patterexp2
+```
+
+
+### Arranging and plotting
+
+```{r, fig.width = 12, fig.height= 3.8, "plot"}
+Figure_5 <- plot_grid(Tile, patterexp1, patterexp2,
+                      nrow = 1,
+                      labels = c("a", "b", "c"),
+                      hjust = -2,
+                      vjust = 3,
+                      label_size = 15)
+
+
+ggsave("Figure_5.pdf", Figure_5, width = 15, height = 5, device=cairo_pdf)
+
+plot(Figure_5)
+
+
+
+```
+
+

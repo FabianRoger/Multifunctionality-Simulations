@@ -1,0 +1,470 @@
+---
+Title: "sensibility of multithreshold approach"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+This script produces:
+
++ Figure 6
++ Figure S1
+
+This script sets up the simulations to show the effect of standardization on the multithreshold approach. It includes 4 different scenarios.
+
++ `Single_dist`: 
+All function values are drawn from a single distribution. **Choosing the pre-set values produces Figure S1**
+
++ `Multi_dist`:
+Different parameters can be specified for each function (which are supplied to the same distribution).
+
++ `Biodepth_data`:
+The monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used to simulate the null-expectation for the multithreshold approach. **Choosing Germany produces Figure 5**
+
++ `Biodepth_sim
+The mean and standard deviation of the function from the monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used as distribution values for a normal distribution. Special case of `Multi_dist`.
+
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, "packages"}
+library(multifunc) #make sure that you don't have dplyr allready loaded otherwise the code will fail because of name conflicts
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+library(RColorBrewer)
+
+source("Multifunc_simulations_functions.R")
+```
+
+### Choose simulation
+
++ choose the simulation that you want to perform by setting the value to `TRUE`
+```{r, "choose country"}
+# choose model (by setting vlaue to TRUE)
+
+Single_dist <- FALSE #produces Figure S1
+Multi_dist <- FALSE
+Biodepth_data <- TRUE #produces Figure 5
+Biodepth_sim <- FALSE
+
+
+if(sum(Single_dist,Multi_dist,Biodepth_data, Biodepth_sim) != 1){stop("please choose one (and only one) scenario by setting the value to TRUE")}
+```
+
+### Choose country (if `Biodepth_data` or `Biodepth_sim`)
+
+```{r, `choose simulation`}
+if(sum(Biodepth_data, Biodepth_sim) == 1) {
+  
+  data("all_biodepth")
+  
+#choose Location (one off "Germany" "Portugal" "Switzerland" "Greece" "Ireland" "Sweden" "Sheffield" "Silwood" )
+  
+  Location <- "Germany"
+  
+  }
+
+```
+
+### Scenario `Single_dist`
+
+All function values are drawn from a single distribution. **Choosing the pre-set values produces Figure S1**
+
+You can set the same parameters as in most other simulations:
+
++ `distribution` : the distribution function. The names of the parameters must be changed accordingly in `FunctionValue()`
++ `specnum` : the number of species
++ `funcnum` : the number of functions 
++ `method` : the method to use (with or without complementarity)
+
+Additional parameters for `method = comp`:
+
++ `CF` : maximum complementarity factor 
++ `compfunc` : which functions should experience complementarity (`all` or any combination of `func.names`)
++ `r` : the 'growth-rate' of the complementarity factor
+
+One can choose a random seed by commenting out `set.seed` or you can specify your own seed. 
+
+```{r, "Single_dist"}
+
+if(Single_dist) {
+  
+set.seed(999)
+
+specnum <- 15
+funcnum <- 9
+
+distribution = "rnorm" #choose your distribution (one off ?Distributions)
+
+FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 30, sd = 6)  
+
+func.names <- as.character( unique( FuncMat$Functions))
+
+spec.names <- as.character( unique( FuncMat$Species))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+method = "av" #av or comp
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+}
+  
+```
+
+### Scenario `Multi_dist`
+
+Different parameters can be specified for each function (which are supplied to the same distribution function). The parameters (`par1` and `par2`, the second one is not need for all distributions) must be specified as list of length `funcnum`. Otherwise as `Single_dist`.
+
+```{r, "Multi_dist"}
+
+if(Multi_dist) {
+  
+set.seed(999)
+
+specnum <- 15
+funcnum <- 9
+
+distribution = "rnorm" #choose your distribution (one off ?Distributions)
+
+
+FuncList <- list()
+
+# choose parameters
+par1 <- seq(50, 100, len = funcnum) #parameter values for functions 1:nfunc (first parameter)
+par2 <- seq(15,3, len = funcnum) #parameter values for functions 1:nfunc (second parameter - if needed)
+
+for (i in 1:funcnum){
+var <- paste("FuncMat", i, sep = "_")
+
+# you have to name the parameters according to your chosen distribution
+FuncList[[var]] <- FunctionValue(specnum,funcnum, distribution, mean = par1[[i]], sd = par2[[i]])  
+}
+
+FuncMat <- FuncList[[1]]
+
+func.names <- as.character( unique( FuncMat$Functions))
+
+for(n in seq_along(func.names)){
+  FuncMat[FuncMat$Functions == func.names[n], ]$Funcval <- FuncList[[n]][FuncList[[n]]$Functions == func.names[n], ]$Funcval
+}
+
+spec.names <- as.character( unique( FuncMat$Species))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+}
+```
+
+
+### Scenario `Biodepth_data`
+
+The monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are taken to simulate the null-expectation for the multithreshold approach. **Choosing Germany produces Figure 5**
+
+you can choose to simulate complementarity for some or all functions
+
+```{r, "Biodepth_data"}
+
+if(Biodepth_data) {
+
+  set.seed(999)
+  
+biodepth_func <- 
+  all_biodepth %>% 
+  gather("species", "p_a", 26:ncol(.)) %>% 
+  filter(p_a == 1) %>% 
+  filter(Diversity == 1) %>% 
+  filter(location == Location) %>% 
+  select(species, 15:25) %>% 
+  select_if(function(col) sum(is.na(col)) <= floor(0.2*length(col))) %>% #exclude functions with > 20% NAs
+  na.omit() %>% #exclude species with missing function values
+  group_by(species) %>% 
+  summarise_all(function(x) mean(x, na.rm = T)) %>% 
+  rename("Species" = species)
+
+specnum <- nrow(biodepth_func)
+spec.names <- biodepth_func$Species
+
+
+funcnum <- ncol(biodepth_func)-1
+
+
+FuncMat <- gather(biodepth_func, Functions, Funcval, -Species)
+func.names <- as.character( unique( FuncMat$Functions))
+
+SpecMat <- SpeciesMatrix(specnum, maxrep = 500)
+dimnames(SpecMat)[[2]] <- spec.names
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+}
+
+```
+
+### Scenario `Biodepth_sim`
+
+The mean and standard deviation of the function from the monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used as distribution values for a normal distribution. Special case of `Multi_dist`.
+
+```{r, "Biodepth_sim"}
+
+if(Biodepth_sim) {
+
+  set.seed(999)
+
+biodepth_func <- 
+  all_biodepth %>% 
+  gather("species", "p_a", 26:ncol(.)) %>% 
+  filter(p_a == 1) %>% 
+  filter(Diversity == 1) %>% 
+  filter(location == Location) %T>% 
+  assign('Loc_sub', ., envir = .GlobalEnv) %>% 
+  select(species, 15:25) %>% 
+  select_if(function(col) sum(is.na(col)) <= floor(0.2*length(col))) %>% #exclude functions with > 20% NAs
+  gather(Function, value, -species) %>% 
+  group_by(Function) %>% 
+  summarise(mean_func = mean(value, na.rm = T),
+            sd_func = sd(value, na.rm = T))
+
+spec.names <- unique(Loc_sub$species)
+specnum <- length(spec.names)
+
+funcnum <- nrow(biodepth_func)
+
+distribution = "rnorm" 
+
+# if function values should be drawn form distributiuon with differnt means
+
+FuncList <- list()
+
+par1 <- biodepth_func$mean_func #parameter values for functions 1:nfunc (first parameter)
+par2 <- biodepth_func$sd_func #parameter values for functions 1:nfunc (second parameter - if needed)
+
+for (i in 1:funcnum){
+var <- paste("FuncMat", i, sep = "_")
+
+# you have to name the parameters according to your chosen distribution
+FuncList[[var]] <- FunctionValue(specnum,funcnum, distribution, mean = par1[[i]], sd = par2[[i]])  
+}
+
+FuncMat <- FuncList[[1]]
+
+func.names <- as.character( unique( FuncMat$Functions))
+
+for(n in seq_along(func.names)){
+  FuncMat[FuncMat$Functions == func.names[n], ]$Funcval <- FuncList[[n]][FuncList[[n]]$Functions == func.names[n], ]$Funcval
+}
+
+spec.names <- as.character( unique( FuncMat$Species))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+}
+
+```
+
+### Slope simualtion
+
+Standardize the function values with different methods (between 0 and 1 and by the maximum) and calculate the multithreshold approach for both scenarios.
+
+```{r, "Slope simualtion"}
+
+# standardize functions by maximum
+AvFunc_max <- AvFunc %>% 
+  mutate_at(vars(one_of(func.names)), function(x) {x / max(x)})
+
+# standardize functions between 0 and 1
+AvFunc_unit <- AvFunc %>% 
+   mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
+
+# store both dataset in list
+Av_list <- list(AvFunc_max = AvFunc_max,
+                AvFunc_unit = AvFunc_unit)
+
+# empty dataframe to store results
+RES_stand <- data.frame(thresholds = numeric(), 
+                   Estimate = numeric(),
+                   `Std. Error` = numeric(), 
+                   stand_method = character())
+
+
+for (i in seq_along(Av_list)) { #loop over differnt standardizations
+  
+  mixedThresh <- getFuncsMaxed(Av_list[[i]], func.names, threshmin=0.05, threshmax=0.99, prepend=c("Richness"), maxN=1)
+  
+  mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+                               coefVar="Richness")
+    
+  colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+    
+  temp <- mixedLinearSlopes %>% 
+      select(thresholds, Estimate, `Std. Error`) %>% 
+      mutate(stand_method = names(Av_list)[i])
+    
+    RES_stand <- rbind(RES_stand, temp)
+  }
+
+```
+
+### Plot slope patterns
+
+```{r, "Plot slope patterns"}
+
+STAND <- RES_stand %>% 
+  group_by(thresholds, stand_method) %>% 
+  mutate(CI_high = Estimate + 1.96 * `Std. Error`,
+            CI_low = Estimate - 1.96 * `Std. Error`) %>% 
+ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = as.factor(stand_method)), colour = NA, alpha = 0.4)+
+  geom_line( aes(colour = as.factor(stand_method)), lwd = 0.8) +
+  ylab("Slope estimate") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=0.5, linetype=2) + 
+  theme_bw(base_size=15)+
+  scale_fill_brewer(guide = FALSE, palette = "Set1")+
+  scale_color_brewer(guide = guide_legend(title =""), palette = "Set1", labels = c("scaled by max", "scaled [0,1]"))+
+  theme_classic()+
+  theme(legend.position = c(.2,0.3),  legend.background = element_rect(fill = "transparent", colour = "transparent"))
+  
+  
+STAND
+```
+
+### Plot distribution of raw function values
+
+```{r, "raw func"}
+
+get_colours <- colorRampPalette(brewer.pal(9, "Greys"))
+
+Hist_orig <- AvFunc %>% 
+  select(one_of(func.names)) %>% 
+  gather(Func, value) %>% 
+  ggplot(.)+
+  geom_density(aes(x = value,y =..density.., colour = Func), position="identity")+
+  scale_colour_manual( values = get_colours(funcnum))+
+  theme_classic()+
+  theme(legend.position = "none") +
+  labs(x = "Simulated function values", y = "Density")
+
+Hist_orig
+
+```
+
+### Plot distribution of standardized function values (between 0 and 1)
+
+```{r, "unit_func"}
+
+Hist_unit <- AvFunc_unit %>% 
+  select(one_of(func.names)) %>% 
+  gather(Func, value) 
+
+
+  maxD <- Hist_unit %>% 
+  group_by(Func) %>% 
+  summarize(maxD = max(density(value)$y)) %>% 
+  ungroup %>% 
+  summarize(maxD = max(maxD)) %>% as.numeric()
+
+get_colours <- colorRampPalette(brewer.pal(9, "Blues"))
+    
+Hist_unit_gg <- ggplot(Hist_unit)+
+  geom_density(aes(x = value,y =..density.., colour = Func), position="identity")+
+  geom_vline(aes(xintercept = mean(value)), colour = "black", linetype = "dashed")+
+  annotate("label", x = 0.8, y = 0.8*maxD,
+           label = "f(x) == frac(x - plain(min)(x), plain(max)(x) - plain(min)(x))", 
+           parse=T, size = 2.5, alpha = 0.8)+
+  geom_vline(aes(xintercept = mean(value)), colour = "black", linetype = "dashed")+
+  scale_colour_manual(values = get_colours(funcnum))+
+  theme_classic()+
+  theme(legend.position = "none")+
+  labs(x = "Scaled between [0,1]", y = "Density")
+
+Hist_unit_gg
+
+```
+
+
+### Plot distribution of standardized function values (by maximum)
+
+```{r, "max_func"}
+
+Hist_max <- AvFunc_max %>% 
+  select(one_of(func.names)) %>% 
+  gather(Func, value) 
+
+maxD <- Hist_max %>% 
+  group_by(Func) %>% 
+  summarize(maxD = max(density(value)$y)) %>% 
+  ungroup %>% 
+  summarize(maxD = max(maxD)) %>% as.numeric()
+
+get_colours <- colorRampPalette(brewer.pal(9, "Reds"))
+  
+Hist_max_gg <- ggplot(Hist_max)+
+  geom_density(aes(x = value,y =..density.., colour = Func), position="identity")+
+  geom_vline(aes(xintercept = mean(value)), colour = "black", linetype = "dashed")+
+  annotate("label", x = 0.3, y = 0.8*maxD, 
+           label = "f(x) == frac(x , plain(max)(x))", 
+           parse=T, size = 2.5)+
+  scale_colour_manual(values = get_colours(funcnum))+
+  scale_x_continuous(limits = c(0,1))+
+  theme_classic()+
+  theme(legend.position = "none")+
+  labs(x = "Scaled by maximum", y = "Density")
+
+Hist_max_gg
+```
+
+### Arrange, draw and save the plots
+
+```{r, fig.height= 6, fig.width=10}
+if(sum(Biodepth_data + Biodepth_sim) ==1) {
+  plot <- 
+  ggdraw() +
+  draw_plot(add_sub(STAND, "a", 0.02,8), 0, .5, 1, .5) +
+  draw_plot(add_sub(Hist_unit_gg,"b", 0.05, 8), 0, 0, 0.5, 0.5)+
+  draw_plot(add_sub(Hist_max_gg,"c", 0.05, 8), 0.5, 0, 0.5, 0.5)
+} else {
+  plot <- 
+  ggdraw() +
+  draw_plot(add_sub(STAND, "a", 0.02,8), 0, .5, 1, .5) +
+  draw_plot(add_sub(Hist_orig,"b", 0.05,8), 0, 0, 1/3, 0.5) +
+  draw_plot(add_sub(Hist_unit_gg,"c", 0.05, 8), 1/3, 0, 1/3, 0.5)+
+  draw_plot(add_sub(Hist_max_gg,"d", 0.05, 8), 2/3, 0, 1/3, 0.5)
+}
+
+plot
+
+if(Biodepth_data) {
+  ggsave("Figure_6.pdf", plot, height = 6, width = 10)
+}
+
+if(Single_dist) {
+  ggsave("Figure_S1.pdf", plot, height = 6, width = 10)
+}
+
+```
+
