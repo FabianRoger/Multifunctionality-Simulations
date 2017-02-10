@@ -3,7 +3,7 @@ title: "Average and multithreshold approach with and w/o complementarity"
 output: html_document
 ---
 
-```{r}
+```{r, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```
@@ -51,13 +51,13 @@ The possible methods are:
 
 + `av` for average. Here the mixture values at each diversity level are the unweighted single - species function values. So simply the mean (or average) value of the community.
 
-+ `comp` for complementary. Here one, several or all functions are multiplied with a complementary factor before the average is calculated. The complementary factor is always a saturating  function of the richness level of the form:
++ `comp` for complementarity Here one, several or all functions are multiplied with a complementary factor before the average is calculated. The complementary factor is always a saturating  function of the richness level of the form:
 
 $$ compfac = CF * ( 1 - ( 1 - \frac{1}{CF} ) * exp{ ( 1 - Richness ^ r )} $$
 
   + `CF` : maximum value for the complementary factors as $S \to \inf$
   + `r` *growthrate* i.e. the rate at which `compfac` grows to `CF`
-  + `compfunc` : the functions subjected to complementary. Either "all" or a subset of `func.names`
+  + `compfunc` : the functions subjected to complementarity Either "all" or a subset of `func.names`
   
 to make the analysis reproducible we can set a seed with `set.seed. 
 
@@ -118,7 +118,7 @@ FuncMat_plot %>% cor %>%
 
 + `AverageFunction` takes the out put of `SpeciesMatrix` and `FunctionValue`, i.e. the plot x species matrix and the species - function data-frame simulated above, to calculate plot-wise functioning for all plots, given the chosen method (`av`or `comp`)
 
-```{r}
+```{r, "Avfunc"}
 #code takes ~5 min to run for 15 species. Set to lower value for higher number of species! 
 
 # maxrep <- choose(specnum, floor(specnum/2))
@@ -152,7 +152,7 @@ there are two main ways to standardize the function values:
 
 + by the maximum with $x_{stand} = \frac{x}{max(x)}$
 
-```{r}
+```{r, "standardize"}
 # extract function names
 func.names <- as.character( unique( FuncMat$Functions))
 
@@ -164,7 +164,7 @@ AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) /
 ```
 
 ###plot single function values
-```{r}
+```{r, "single_func"}
 AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness) 
 
 SingleFunc <- AvFunc_long %>%
@@ -188,7 +188,7 @@ SingleFunc
 
 + multifunctionality is calculated as the average value of the standardized single functions
 
-```{r}
+```{r, "multifunc_av"}
 
 # add averaged multifunctional index
 AvFunc$meanFunction <- rowMeans(AvFunc[,func.names])
@@ -218,7 +218,7 @@ AverageFunc
 
 + multifunctionality is calculated as the number of functions that are sustained above a pre-defined threshold - calculated as a percentage of the maximum observed function value across all plots.
 
-```{r}
+```{r, "single_thresh"}
 
 mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
                            prepend=c("Richness"), maxN=1)
@@ -246,7 +246,7 @@ singleThresh
 
 + the slopes shown in the previous figure are plotted against threshold values over the whole range of possible thresholds 
 
-```{r}
+```{r, "multithresh"}
 mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
                                coefVar="Richness")
 
@@ -284,7 +284,7 @@ Exact same code as above, but with the `method = "comp"` chosen to simulate comp
 ###Simulate diversity experiment
 
 
-```{r}
+```{r, "Avfunc_comp"}
 #code takes ~5 min to run for 15 species. Set to lower value for higher number of species! 
 
 # maxrep <- choose(specnum, floor(specnum/2))
@@ -312,7 +312,7 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 
 ### standardize function values
 
-```{r}
+```{r, "standardize_comp"}
 # extract function names
 func.names <- as.character( unique( FuncMat$Functions))
 
@@ -324,7 +324,7 @@ AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) /
 ```
 
 ###plot single function values
-```{r}
+```{r, "single_func_comp"}
 AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness) 
 
 SingleFunc_comp <- AvFunc_long %>%
@@ -345,7 +345,7 @@ SingleFunc_comp
 ```
 
 ### Average approach for multifunctionality
-```{r}
+```{r, "multifunc_av_comp"}
 
 # add averaged multifunctional index
 AvFunc$meanFunction <- rowMeans(AvFunc[,func.names])
@@ -372,7 +372,7 @@ AverageFunc_comp
 ```
 
 ### single-threshold approach for multifunctionality
-```{r}
+```{r, "single_thresh_comp"}
 
 mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
                            prepend=c("Richness"), maxN=1)
@@ -397,7 +397,7 @@ singleThresh_comp
 ```
 
 ### multi-threshold approach for multifunctionality
-```{r}
+```{r, "multithresh_comp"}
 mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
                                coefVar="Richness")
 
@@ -429,7 +429,7 @@ multiTresh_comp
 ### Figure 2
 
 Here we arrange the four figures into a multi-panel figure. 
-```{r, fig.height=20, fig.width=14}
+```{r, fig.height=20, fig.width=14, "multipanel-fig"}
 
 #With a lot of grid-foo to align the panels.
 
