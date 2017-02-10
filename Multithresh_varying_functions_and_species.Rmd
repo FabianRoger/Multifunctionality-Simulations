@@ -1,20 +1,47 @@
 ---
 title: "Multithreshold approach with varying number of functions and species"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 This script produces:
 
 + Figure 4
 
-```{r, echo = FALSE}
+This script sets up the simulations to show the effect of including a varying number of functions and (separately) a varying number of species on the slope pattern produced by the multithreshold approach. 
+
+for the **variable number of function simulation** we hold species richness constant at `specnum`. 
+
+We then define a set number of functions of size `funcnum` from which we draw all possible (but max 50) subsets of variable size (3 subsets-sizes total). For each subset of functions we calculate the multithreshold approach. 
+
+for the **variable number of species simulation** we hold the number of function  constant at `funcnum` but calculate the multithreshold approach for the full species range and two smaller subsets.  
+
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE, "load packages"}
+library(multifunc)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(gridExtra)
+library(cowplot)
 
 source("functions_short.R")
 ```
+
+# simulate full diveristy experiment
+
+You can set the same parameters as in most other simulations:
+
++ `distribution` : the distribution function. The names of the parameters must be changed accordingly in `FunctionValue()`
++ `specnum` : the (maximum) number of species
++ `funcnum` : the (maximum) number of functions 
++ `method` : the method to use (with or without complementarity)
+
+additional parameters for `method = comp`:
+
++ `CF` : maximum complementarity factor 
++ `compfunc` : which functions should experience complementarity (`all` or any combination of `func.names`)
++ `r` : the *growthrate* of the complementarity factor
 
 
 ```{r}
@@ -42,43 +69,41 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 
 # standardize functions
 AvFunc_func <- AvFunc %>% 
-  mutate_at(vars(one_of(func.names)), function(x) {x / max(x)})
+  mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
+###variable number of function simulation
 
 ```{r}
-
+# empty dataframe to store results
 RES_func <- data.frame(thresholds = numeric(), 
                    Estimate = numeric(), 
                    nfunc = numeric(),
                    func_comb = numeric())
 
-
-for (i in c(ceiling(funcnum/3), 2*ceiling(funcnum/3), funcnum)) { #loop over all subsets of function of size 1:funcnum
+#loop over chosen subsets of all function of varying size
+for (i in c(ceiling(funcnum/3), 2*ceiling(funcnum/3), funcnum)) { 
 
   # all poosibel combination of i out of funcnum functions
   func_comb <- combn(func.names, i)
   
-  # sample 50 random funciton combinations if more than 50 possible combinations
+  # sample 50 random function combinations if more than 50 possible combinations
   if(ncol(func_comb) > 50) {
     func_comb <- func_comb[, sample(c(1:ncol(func_comb)), 50)]
   }
 
-  for ( k  in seq_len(ncol(func_comb))) { #loop over all function combinations of size i
+  #loop over all function combinations of size i
+  for ( k  in seq_len(ncol(func_comb))) { 
     
-    mixedThresh <- getFuncsMaxed(AvFunc, func_comb[ ,k], threshmin=0.05, threshmax=0.99, prepend=c("Richness"), maxN=1)
-   
-    # if maximum funcitoninh should be calculated instead
+    # number of functions above threshold
+    mixedThresh <- getFuncsMaxed(AvFunc, func_comb[ ,k], threshmin=0.05,
+                                 threshmax=0.99, prepend=c("Richness"), maxN=1)
+    # slopes  
+    mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm, 
+                                  data=mixedThresh,coefVar="Richness")
     
-    #mixedThresh <- mixedThresh %>% 
-    #  group_by(Richness, thresholds, thresh) %>% 
-    #  summarize(funcMaxed = max(funcMaxed)) %>% ungroup
-    
-  
-    mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
-                               coefVar="Richness")
-    
-    colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+    colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",
+                                     "Std. Error", "t value", "Pr(>|t|)")
     
     temp <- mixedLinearSlopes %>% 
       select(thresholds, Estimate) %>% 
@@ -90,6 +115,8 @@ for (i in c(ceiling(funcnum/3), 2*ceiling(funcnum/3), funcnum)) { #loop over all
   }
 
 ```
+
+###plot with variable number of functions
 
 ```{r}
 
@@ -114,33 +141,33 @@ ggplot(., aes(x=thresholds*100, y=mean_Estimate), size = 0.5, alpha = 0.3)+
 FUNC
 ```
 
-# varying number of species
+###variable number of species simulation
 
 ```{r}
 
+# empty dataframe to store results
 RES_spec <- data.frame(thresholds = numeric(), 
                    Estimate = numeric(),
                    `Std. Error` = numeric(), 
                    nspec = numeric())
 
-
-for (i in c(6, 9, specnum)) { #loop over all subsets of function of size 1:funcnum
+#loop over three subsets of specnum
+for (i in c(6, 9, specnum)) { 
 
   #subset for number of species to include
   AvFunc_spec <- filter(AvFunc, Richness %in% 1:i) 
   
-  mixedThresh <- getFuncsMaxed(AvFunc_spec, func.names, threshmin=0.05, threshmax=0.99, prepend=c("Richness"), maxN=1)
-   
-  # if maximum funcitoninh should be calculated instead
-  
-  #mixedThresh <- mixedThresh %>% 
-  #  group_by(Richness, thresholds, thresh) %>% 
-  #  summarize(funcMaxed = max(funcMaxed)) %>% ungroup
-  
-  mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
-                               coefVar="Richness")
+  # number of functions above threshold
+  mixedThresh <- getFuncsMaxed(AvFunc_spec, func.names,
+                               threshmin=0.05, threshmax=0.99,
+                               prepend=c("Richness"), maxN=1)
+
+  #slopes
+  mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,
+                                data=mixedThresh, coefVar="Richness")
     
-  colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
+  colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",
+                                   "Std. Error", "t value", "Pr(>|t|)")
     
   temp <- mixedLinearSlopes %>% 
       select(thresholds, Estimate, `Std. Error`) %>% 
@@ -151,9 +178,10 @@ for (i in c(6, 9, specnum)) { #loop over all subsets of function of size 1:funcn
 
 ```
 
+###plot with variable number of species
 
 ```{r}
-
+#plot
 SPEC <- RES_spec %>% 
   group_by(thresholds, nspec) %>% 
   mutate(CI_high = Estimate + 1.96 * `Std. Error`,
@@ -174,9 +202,17 @@ ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
 SPEC
 ```
 
-
+### arrange plots
 ```{r}
-grid.arrange(FUNC,SPEC, nrow = 1)
+# arrange plots and save
+plot <- plot_grid(FUNC, SPEC, nrow = 1,
+                      labels = c("a", "b"),
+                      hjust = -7,
+                      vjust = 3,
+                      label_size = 15)
+
+plot
+ggsave("Figure_4.pdf", plot, height = 4, width = 8)
 
 ```
 
