@@ -63,7 +63,7 @@ SpeciesList <- function(specnum) {
 
 FunctionList <- function(funcnum) {
   # creates character vector with funcnam function names. Function are named as 
-  # follows: Func_01, Func_02 (...) 
+  # follows: F 1, F 2 (...) 
   #
   # Args:
   #   funcnum: integer, positive number giving the number of Functions to be named
@@ -80,7 +80,7 @@ FunctionList <- function(funcnum) {
 
 SpeciesMatrix <- function(specnum, maxrep = 50) {
   # creates a species matrix with specnum species.
-  # At each richness level, the replicates communities are all unique
+  # At each richness level, the replicated communities are all unique
   # The species names are generated with SpeciesList() 
   # and the experimental design is generated with the function PossibleCombinations()
   #
@@ -94,7 +94,7 @@ SpeciesMatrix <- function(specnum, maxrep = 50) {
   #   Species matrix with with presence absence data for species in plots
   #   rows are plots, species are column. Columnnames are species names, taken
   #   from specnum. Number of richness levels and number of replication
-  #   per richness levels are taken from expdesign 
+  #   per richness levels are taken from expdesign computed by PossibleCombinations()
   
   spec <- SpeciesList(specnum) #list of species names
   
@@ -139,7 +139,7 @@ SpeciesMatrix <- function(specnum, maxrep = 50) {
           Spec.mat[k, which(spec %in% M[, (k+1) - min(row.seq)])] <- 1
         }
         
-      } else {Spec.mat[nrow(Spec.mat), ] <- 1}
+      } else {Spec.mat[nrow(Spec.mat), ] <- 1} # fill full species mixture
   }
         
   
@@ -220,7 +220,7 @@ AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "F 1", self
   #             to calculate the weightes mean for all functions
   #   selfac: "selection factor": factor by which the weights will be amplified 
   #   compfunc: if complementarity should only happen for some functions, the 
-  #             funcitons can be specified as here. default is all. 
+  #             functions can be specified here. default is all. 
   #
   # Returns:
   #   dataframe with Richness of each plot and average function value for each 
@@ -238,7 +238,6 @@ AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "F 1", self
   spec <- colnames(SPM)
   
   # define function to be applied to each plot for method average or complementarity
-  
   FUNC <- FUNC %>% spread(Functions, Funcval)
   
   if (is.na(pmatch(method, c("average", "complementarity"))) == FALSE) {
@@ -248,7 +247,6 @@ AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "F 1", self
   }
   
   # define function to be applied to each plot for selection effect
-  
   if (is.na(pmatch(method, "selection")) == FALSE) {
     
     spec.weights <- FUNC[, which(colnames(FUNC) == selfunc)]^selfac
@@ -325,7 +323,7 @@ SlopeSummary <- function(MT) {
   
   ### error handling
   if (class(MT) != "data.frame") {
-    stop("the function expects a dataframe containing at leat the following columns: 
+    stop("the function expects a dataframe containing at least the following columns: 
          `Estimate`, `Std. Error` and `thresholds`")
   }
   
