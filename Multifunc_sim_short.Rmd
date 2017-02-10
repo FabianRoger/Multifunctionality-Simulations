@@ -76,7 +76,7 @@ source("functions_short.R")
 specnum <- 15
 funcnum <- 9
 
-distribution = "runif"
+distribution = "rnorm"
 ```
 
 For the simulations presented in the article we chose the following parameters
@@ -91,11 +91,11 @@ For the simulations presented in the article we chose the following parameters
 set.seed(999)
 
 # create function matrix
-FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
+FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 20, sd = 5)
 
-FuncMat <- FuncMat %>% 
-  group_by(Functions) %>% 
-  mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval)))
+#FuncMat <- FuncMat %>% 
+ # group_by(Functions) %>% 
+#  mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval)))
 
 
 SF_G <- ggplot(FuncMat, aes(Functions, Species, fill = Funcval))+
@@ -190,17 +190,17 @@ $$ compfac = CF * ( 1 - ( 1 - \frac{1}{CF} ) * exp{ ( 1 - Richness ^ r )} $$
 ### scenarion 1 - no diveristy effect on any single function
 
 ```{r}
-SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 6435)
 
 
 #select method and additional parameters if appropriate by setting the `if` statement to `TRUE`
 
-if (TRUE) {method = "av"}
+if (FALSE) {method = "av"}
 
-if (FALSE) {method = "comp"
-            CF = 2
-              compfunc = "all"
-              r = 0.05}
+if (TRUE) {method = "comp"
+            CF = 3
+              compfunc = c("F 1", "F 6")
+              r = 0.25}
 
 #Average function
 AvFunc <- AverageFunction(SpecMat, FuncMat,
@@ -211,6 +211,8 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 
 
 AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness)
+
+
 
 SingleFunc <- ggplot(AvFunc_long, aes(x = Richness, y = FuncVal))+
   geom_point(shape = 21, colour = "darkgrey", fill = NA)+
@@ -242,7 +244,7 @@ AverageFunc <- ggplot(AvFunc, aes(x=Richness, y=meanFunction))+
     stat_smooth(method="lm", colour="red") +
     xlab("\nSpecies richness") +
     ylab("Average value of standardized functions\n")+
-    scale_y_continuous(limits = c(0.25,0.75))+
+   # scale_y_continuous(limits = c(0.25,0.75))+
     scale_x_continuous(breaks = seq(1,15,2))
 
 AverageFunc
@@ -305,8 +307,8 @@ multiTresh <- ggplot(mixedLinearSlopes, aes(x=thresholds)) +
   geom_point(aes(x=thresholds*100, y=Estimate)) +
   ylab("Change in number of functions per addition of 1 species\n(slope)") + xlab("Threshold (%)") +
   geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
-  theme_bw(base_size=15)+
-   scale_y_continuous(limits = c(-0.3, 0.3))
+  theme_bw(base_size=15)
+  # scale_y_continuous(limits = c(-0.3, 0.3))
 
 multiTresh
 
