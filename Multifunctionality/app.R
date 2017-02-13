@@ -3,7 +3,6 @@ library(multifunc)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-library(broom)
 library(RColorBrewer)
 library(corrplot)
 
