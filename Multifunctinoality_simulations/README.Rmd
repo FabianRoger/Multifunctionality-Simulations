@@ -41,9 +41,10 @@ This script sets up the simulations to explain the link between the distribution
 
 ###Session info
 
+This file shows the output of a `sessionInfo()` call after loading all packages used in the scripts above
 
 ```{bash}
-#cat sessionInfo.txt
+cat sessionInfo.txt
 ```
 
 
