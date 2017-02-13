@@ -1,0 +1,103 @@
+---
+title: "Description"
+output: html_document
+---
+
+## multifunctionality simulations
+
+This app allows you to simulate a diversity experiment *in silico*. 
+
+from the article: 
+
+> To explore the biodiversity multifunctionality-relationship, we simulate 15 species (A-O) that perform 9 functions (F 1 to F 9). The levels at which each function is performed by each species is drawn from a uniform distribution, U(0, 1). [...] In a second step we simulate a diversity experiment where we combine the species from the species pool in communities with richness 1 to 15. All possible communities are simulated at each richness level. We use a replacement design, i.e. with species abundances declining proportionally with the number of species. This means, for instance, that in a 10-species mixture, each species constitutes 10% of the total abundance. It is the most commonly used design in biodiversity ecosystem functioning experiments and simulates a scenario with no niches and equal fitness across species (under the assumption that all species are equally abundant). Such a scenario yields the null expectation used in biodiversity-ecosystem functioning studies when testing for biodiversity effects.
+
+In the app, you can vary the number `Number of species` and `Number of functions` with the glider in the sidebar. 
+
+**Note that in the app we do *not* compute *all possible combinations*, but a maximum of 200 (random and unique combinations) per richness level** 
+
+#### specifying the distribution
+
+You can also choose to draw the function values from a different distribution, by choosing one of the following distributions form the `probability distribution` drop-down menu. Currently the following distributions are implemented:
+
++ uniform
++ normal
++ binary
++ beta
+
+After choosing one of the available distributions, you can specify the distribution parameters in the two fields to the right. 
+
+The plot in the side-bar is meant to help you choosing appropriate distribution values by plotting the `probability density function for 10000 random values drawn form a distribution with the specified parameters. 
+
+#### specifying complementarity
+
+In the side-bar, below the graph with the probability density function, you can choose to implement a `diversity effect`.  In the drop-down menu, you can choose between 
+
++ none
++ complementarity
+
+If you choose `complementarity` you can further specify the shape and strength of the complementarity factor. 
+
+Here one, several or all (chosen the field `complementarity function`) functions are multiplied with a `complementary factor` before the average is calculated. The complementary factor is always a saturating  function of the richness level of the form:
+
+$$ compfac = CF * ( 1 - ( 1 - \frac{1}{CF} ) * exp{ ( 1 - Richness ^ r )} $$
+
+  + `CF` : `complementary factor` maximum value for the complementary factors as $S \to \inf$
+  + `r` : `complementarity rate`  i.e. the rate at which `compfac` grows to `CF`
+  + `compfunc` : the functions subjected to complementarity. Either "all" or a subset of all functions. 
+  
+The plot below shows how the complementarity factor grows with species richness for the specified settings. 
+
+
+#### specifying the standardization method
+
+citing form the article:
+
+>  We can use the raw data, standardise data by dividing by their maximum (or some top percentage of the maximum), standardise them to range from 0 to 1, or convert data to standard scores. If we compare two ways of standardisation we see that standardising by the maximum value produces a different pattern than if we standardise between 0 and 1.
+
+Here, there are two ways to standardize the function values:
+
++ between 0 and 1 with $x_{stand} = \frac{x - min(x)}{max(x) - min(x)}$ (option `between [0,1]`))
+
++ by the maximum with $x_{stand} = \frac{x}{max(x)}$ (option `by maximum`)
+
+**The standardized function values for all species are shown in the heatmap that is generated after you click on `draw function values`. The colour gradient goes always from 0 to 1**
+
+#### setting a seed...
+
+... allows you to set a seed in `set seed` for reproducible repeated simulations. If the field is left empty, a random seed is chosen. 
+
+### `draw function values` ...
+
+... draws function values from the specified distribution. The standardized function values are visualized in a heat-map and the correlation of function values in a correlogram. **If you change the parameters, you need to click again to update the results**
+
+### `calculate diversity ~ multifunctionality`...
+
+...calculates the diversity ~ multifunctionality relationship for the specified function 
+
+
+we show:
+
++ **The single function values**
+
+Separate plots for all functions. 
+
++ **Average approach for multifunctionality**
+
+Multifunctionality is calculated as the average value of the standardized single functions.
+
++ **Single-threshold approach for multifunctionality**
+
+Multifunctionality is calculated as the number of functions that are sustained above a pre-defined threshold - calculated as a percentage of the maximum observed function value across all plots.
+
++ **Multi-threshold approach for multifunctionality**
+
+The slopes shown in the previous figure are plotted against threshold values over the whole range of possible thresholds.
+
+
+***click to recompute after you updated the function values***
+
+
+
+
+
+
