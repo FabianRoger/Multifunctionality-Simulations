@@ -1,0 +1,50 @@
+---
+title: "README"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Multifunc_simulations_functions.R
+In this script we define the functions that we use for the simulations in the sctipts below. The functions are described in detail in this script. All other scripts load this script and won't run without it. 
+
+**The scripts below are R Markdown scripts and can be nit to HTML/PDF (requires \(\LaTeX\) from within RStudio. Nitting them *as is* produces the html reports in this folder.**
+
+###Multifunctionality_null_models.Rmd
+In this script we set up the simulations for the null expectation of the three most common multifunctionality metrics
+
++ This script produces **Figure_2**
+
+###Number_of_Func_no_effect_on_Slope.Rmd
+This script sets up the simulations to show the effect of including a different number of functions on the slope of the $average multifunctionality \sim diveristy$ relationship.
+
++ This script produces **Figure_3**
+
+###Effect_of_N_func_and_N_spec_on_multithresh_slopes.Rmd
+This script sets up the simulations to show the effect of including a varying number of functions and (separately) a varying number of species on the slope pattern produced by the multithreshold approach. 
+
++ This script produces **Figure_4**
+
+###Explanation_of_slope_pattern.Rmd
+This script sets up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. 
+
++ This script produces **Figure_5** (within Box 2)
+
+###Effect_of_standardization_on_multithresh.Rmd
+This script sets up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. 
+
++ This script produces **Figure_6** (for method `Biodepth_data`)
+
++ This script produces **Figure_S1** (for method `Single_dist`)
+
+###Session info
+
+
+```{bash}
+#cat sessionInfo.txt
+```
+
+
+
