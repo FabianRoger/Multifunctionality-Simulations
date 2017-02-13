@@ -18,16 +18,18 @@ source("helpers.R")
 
 # Define UI 
 ui <- shinyUI(fluidPage(
+  
+  headerPanel("Multifunctionality simulations"),
    
 #### Application title #####
 
-  fluidRow(
-    column(width = 6, offset = 3,
-   titlePanel("Multifunctionality simulations")
-   )
-   ),
+#  fluidRow(
+#    column(width = 6, offset = 3,
+#   titlePanel("Multifunctionality simulations")
+#   )
+#   ),
   
-  br(),
+#  br(),
    
 ############################ Sidebar ############################
 
@@ -177,7 +179,8 @@ br(),
 ############################ Main Panel ############################
 
   mainPanel(
-    
+    tabsetPanel(
+      tabPanel("Simulations",
 #### Action button to draw function values ####
     
     fluidRow(
@@ -241,6 +244,12 @@ hr(), #horizontal line
             )
           )
 
+        ), #simulation tab
+
+tabPanel("Description",
+         withMathJax(includeMarkdown("Description.Rmd"))) 
+
+      ) #tabset
     ) #main panle
   ) #fluid Page
 ) #Shiny UI
@@ -420,7 +429,7 @@ server <- shinyServer(function(input, output) {
 #### calculate species Matrix with specified number of species ###
   
   SpecMat <- reactive({
-    SpeciesMatrix(specnum = input$specnum, maxrep = 50)
+    SpeciesMatrix(specnum = input$specnum, maxrep = 200)
   })
   
 ### calculate average multifunctionality with specified method ###
@@ -534,7 +543,9 @@ server <- shinyServer(function(input, output) {
    
    output$SingleFunc <- renderPlot({
      
-     AvFunc_long <- gather(AvFunc()[, -c(1:isolate(input$specnum))], Function, FuncVal, -Richness)
+     func.names <- as.character( unique( FuncMat()$Functions))
+     
+     AvFunc_long <- gather(AvFunc()[, c("Richness", func.names)], Function, FuncVal, -Richness)
      
      ggplot(AvFunc_long, aes(x = Richness, y = FuncVal))+
        geom_point(alpha = 0.2)+
@@ -549,11 +560,6 @@ server <- shinyServer(function(input, output) {
 #### plot diveristy ~ average function values ####
    
    output$AvFunc <- renderPlot({
-     # extract function names
-     func.names <- as.character( unique( FuncMat()$Functions))
-     
-     # add on the new (standardized) functions along with the averaged multifunctional index
-    # AvFunc <- cbind(AvFunc(), getStdAndMeanFunctions(AvFunc(), func.names))
      
      #plot it
      ggplot(AvFunc(), aes(x=Richness, y=meanFunction))+
