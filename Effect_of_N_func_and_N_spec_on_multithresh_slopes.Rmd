@@ -52,12 +52,16 @@ funcnum <- 9
 
 distribution = "runif"
 
+# set maximum number of replication. For specnum > 12 the code will take a long time to run with the full combinations
+all_comb <- choose(specnum, floor(specnum/2))
+maxrep <- 200 # full combination would be prohibitive
+
 FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
 
 func.names <- as.character( unique( FuncMat$Functions))
 spec.names <- as.character( unique( FuncMat$Species))
 
-SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
 
 method = "av"
 
