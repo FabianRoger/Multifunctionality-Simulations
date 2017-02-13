@@ -18,7 +18,7 @@ All function values are drawn from a single distribution. **Choosing the pre-set
 Different parameters can be specified for each function (which are supplied to the same distribution).
 
 + `Biodepth_data`:
-The monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used to simulate the null-expectation for the multithreshold approach. **Choosing Germany produces Figure 5**
+The monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used to simulate the null-expectation for the multithreshold approach. **Choosing Germany produces Figure 6**
 
 + `Biodepth_sim
 The mean and standard deviation of the function from the monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used as distribution values for a normal distribution. Special case of `Multi_dist`.
