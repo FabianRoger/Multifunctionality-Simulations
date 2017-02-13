@@ -2,7 +2,6 @@
 Title: "sensibility of multithreshold approach"
 output:
   html_document: default
-  html_notebook: default
 ---
 
 This script produces:
@@ -45,7 +44,7 @@ source("Multifunc_simulations_functions.R")
 
 Single_dist <- FALSE #produces Figure S1
 Multi_dist <- FALSE
-Biodepth_data <- TRUE #produces Figure 5
+Biodepth_data <- TRUE #produces Figure 6
 Biodepth_sim <- FALSE
 
 
