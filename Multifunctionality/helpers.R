@@ -310,7 +310,7 @@ SlopeSummary <- function(MT) {
   
   ### error handling
   if (class(MT) != "data.frame") {
-    stop("the function expects a dataframe containing at leat the following columns: 
+    stop("the function expects a dataframe containing at least the following columns: 
          `Estimate`, `Std. Error` and `thresholds`")
   }
   
