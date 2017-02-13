@@ -13,8 +13,6 @@ This script produces:
 + Figure 2
 
 
-
-
 ```{r, "load packages"}
 library(multifunc)
 library(ggplot2)
