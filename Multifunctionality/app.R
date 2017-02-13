@@ -4,6 +4,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(broom)
+library(RColorBrewer)
+library(corrplot)
 
 
 
@@ -65,10 +67,20 @@ br(),
                                selected = "runif",
                         multiple = FALSE),
             
+#### specify standardization method
+            selectInput("standardization",
+                        "standardization method",
+                        list("by maximum" = "max",
+                             "between [0,1]" = "unit"),
+                        selected = "unit",
+                        multiple = FALSE),
+            
+            
 #### specify seed
             textInput("seed",
                         "set seed",
                         value = "")),
+
 
 #### specify parameters conditional on distribution 
 
@@ -124,8 +136,8 @@ br(),
           selectInput("method",
                       "diversity effect",
                       list("none" = "av",
-                           "complementarity" = "comp",
-                           "selection" = "sel"),
+                           "complementarity" = "comp"),
+#                           "selection" = "sel"),
                       selected = "av",
                       multiple = FALSE)),
 
@@ -141,15 +153,15 @@ br(),
             textInput("r","complementarity rate",
                       value = 1),
             uiOutput("functionlist_comp")
-                        ),
+                        ))),
           
           # parameters method selection
-          conditionalPanel(
-            condition = "input.method == 'sel'",
-            uiOutput("functionlist_sel"),
-            textInput("selfac","selection factor",
-                      value = 1.02))
-          )),
+         # conditionalPanel(
+        #    condition = "input.method == 'sel'",
+        #    uiOutput("functionlist_sel"),
+        #    textInput("selfac","selection factor",
+        #              value = 1.02))
+        #  ),
 
 #### plot complementarity factor if method = comp ####
 
@@ -262,13 +274,13 @@ server <- shinyServer(function(input, output) {
   
 #### function list for method selection ####
   
-  output$functionlist_sel <- renderUI({
-    funclist <- FunctionList(input$funcnum)
-    selectInput("selfunc",
-                "selection function",
-                funclist,
-                "Func_01")
-  })
+#  output$functionlist_sel <- renderUI({
+#    funclist <- FunctionList(input$funcnum)
+#    selectInput("selfunc",
+#                "selection function",
+#                funclist,
+#                "Func_01")
+#  })
   
   
 #### plot for complementarity factor (if method = comp) ####
@@ -398,12 +410,12 @@ server <- shinyServer(function(input, output) {
       FuncMat <- FunctionValue(input$specnum,input$funcnum, "rbinom", size, prob)
     }
     
-    
-    #rearrange for plotting
     FuncMat <- FuncMat %>% 
-      group_by(Functions) %>% 
-      mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval)))
-    })
+        group_by(Functions)
+    
+  })
+    
+
   
 #### calculate species Matrix with specified number of species ###
   
@@ -415,7 +427,7 @@ server <- shinyServer(function(input, output) {
   
   AvFunc <- eventReactive( input$results ,{
     
-    AverageFunction(SpecMat(), 
+    AvFunc <- AverageFunction(SpecMat(), 
                     FuncMat(),
                     method = input$method, 
                     CF = as.numeric(input$CF),
@@ -423,7 +435,22 @@ server <- shinyServer(function(input, output) {
                     compfunc = input$compfunc,
                     selfunc = input$selfunc, 
                     selfac = as.numeric(input$selfac))
-    })
+    
+    func.names <- as.character( unique( FuncMat()$Functions))
+    
+    if (input$standardization == "unit"){
+      AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
+      } 
+    
+    if (input$standardization == "max"){AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})}
+    
+    AvFunc$meanFunction <- rowMeans(AvFunc[,func.names])
+    
+    
+        
+        return(AvFunc)
+    
+        })
   
 #### calculate slopes for multithreshold approach ###
   
@@ -432,8 +459,9 @@ server <- shinyServer(function(input, output) {
     # extract function names
     func.names <- as.character( unique( FuncMat()$Functions))
     
-    # add on the new (standardized) functions along with the averaged multifunctional index
-    AvFunc <- cbind(AvFunc(), getStdAndMeanFunctions(AvFunc(), func.names))
+    AvFunc <- AvFunc()
+    
+    #AvFunc$meanFunction <- rowMeans(AvFunc[,func.names])
     
     getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
                   prepend=c("Richness"), maxN=1)
@@ -446,13 +474,27 @@ server <- shinyServer(function(input, output) {
    
    output$SpecFuncMat <- renderPlot({
      
+     FuncMat <- FuncMat()
      
+     if (input$standardization == "unit"){
+       FuncMat <- FuncMat %>% 
+       group_by(Functions) %>% 
+       mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval)))}
+     
+     if (input$standardization == "max"){
+       FuncMat <- FuncMat %>%
+         group_by(Functions) %>% 
+         mutate(Funcval = Funcval / (max(Funcval)))}
+     
+     # define colours
+     col <- colorRampPalette(c("#FFFFFF", "#D1E5F0", "#92C5DE", "#4393C3", "#2166AC", "#053061"))
+        
      #plot function matrix
-     SF_G <- ggplot(FuncMat(), aes(Functions, Species, fill = Funcval))+
+     SF_G <- ggplot(FuncMat, aes(Functions, Species, fill = Funcval))+
        geom_tile(colour = "black", size = 0.7)+
        annotate(geom = "text", x = (1:isolate(input$funcnum))+0.5, y = isolate(input$specnum+isolate(input$specnum)/10), label = unique(FuncMat()$Functions), angle = 30)+
-       annotate(geom = "text", x = -1, y = 1:isolate(input$specnum) , label = unique(FuncMat()$Species))+
-       scale_fill_gradient2(midpoint = 0.5, mid = "#FFFFCC", low = "#000066", high = "#990000", limits = c(0,1), name = "Function Values")+
+       annotate(geom = "text", x = -1, y = 1:isolate(input$specnum) , label = unique(FuncMat()$Species), colour = "#323232")+
+       scale_fill_gradientn(colours = col(length(unique(FuncMat()$Funcval))), limits=c(0, 1))+
        theme_bw()+
        theme(
          axis.text.x=element_blank(),
@@ -461,11 +503,11 @@ server <- shinyServer(function(input, output) {
          panel.border = element_blank(),
          panel.background = element_blank(),
          axis.ticks = element_blank(), 
-         legend.position = "bottom",
+         legend.position = "right",
          plot.margin=unit(c(1, 1, 0, 0), "cm"))+
-      guides(fill = guide_colorbar(barwidth = 10, barheight = 2,
+      guides(fill = guide_colorbar(barwidth = 2, barheight = 15,
                                     title.position = "top",
-                                    direction = "horizontal"))
+                                    direction = "vertical"))
        labs(x = "", y = "")
      
      
@@ -482,41 +524,9 @@ server <- shinyServer(function(input, output) {
      FuncMat_wide <- FuncMat() %>% spread(Functions, Funcval)
      
      C_mat <- cor(FuncMat_wide[,-1])
-     C_mat[upper.tri(C_mat, diag = TRUE)] <- NA
-     
-     
-     C_mat <- C_mat %>%  
-       as.data.frame %>% 
-       add_rownames(var="Func1") %>% 
-       gather(Func2, Func2_val, -Func1)
-     
-     
-     Cor_G <- ggplot(C_mat, aes(x = Func1, y = Func2, fill = Func2_val))+
-       geom_tile(colour = "white", size = 0.7)+
-       annotate(geom = "text", x = isolate(input$funcnum) + isolate(input$funcnum)/10 , y = (1:(isolate(input$funcnum)-1))+0.5, label = unique(C_mat$Func1)[-(isolate(input$funcnum))], angle = 30)+
-       annotate(geom = "text", x = seq(2 , isolate(input$funcnum), 1 ), y = -1 , label = unique(C_mat$Func1)[-1])+
-       geom_text(aes(Func1, Func2, label = signif(Func2_val,1)), color = "black", size = round(40/isolate(input$funcnum)))+
-       scale_fill_gradient2(midpoint = 0, mid = "#FFFFCC", low = "#000066", high = "#990000", 
-                            limits = c(-1,1), na.value = "white", name = "Pearson Correlation")+
-       labs(x = "", y = "") +
-       theme(
-         axis.text.x=element_blank(),
-         axis.text.y=element_blank(),
-         panel.grid.major = element_blank(),
-         panel.border = element_blank(),
-         panel.background = element_blank(),
-         axis.ticks = element_blank(),
-         legend.position = c(0.7,0.15))+
-       guides(fill = guide_colorbar(barwidth = 10, barheight = 2,
-                                    title.position = "top",
-                                    direction = "horizontal")) +
-       coord_flip()+
-       theme(plot.margin = unit(c(1,1,1,1), "cm"))
-     
-     Cor_G <- ggplot_gtable(ggplot_build(Cor_G))
-     Cor_G$layout$clip[Cor_G$layout$name == "panel"] <- "off"
-     plot(Cor_G)
-     })
+     corrplot(C_mat, type = "lower", tl.col = "black", cl.ratio = 0.2, 
+              cl.length = 11, number.cex = 0.6, addCoef.col = "#323232", diag = F, method="ellipse")})
+
   
        ###### Average approach ######
   
@@ -543,10 +553,10 @@ server <- shinyServer(function(input, output) {
      func.names <- as.character( unique( FuncMat()$Functions))
      
      # add on the new (standardized) functions along with the averaged multifunctional index
-     AvFunc <- cbind(AvFunc(), getStdAndMeanFunctions(AvFunc(), func.names))
+    # AvFunc <- cbind(AvFunc(), getStdAndMeanFunctions(AvFunc(), func.names))
      
      #plot it
-     ggplot(AvFunc, aes(x=Richness, y=meanFunction))+
+     ggplot(AvFunc(), aes(x=Richness, y=meanFunction))+
        geom_point(size=3, alpha =0.3)+
        theme_bw(base_size=15)+
        stat_smooth(method="lm", colour="black", size=2) +
