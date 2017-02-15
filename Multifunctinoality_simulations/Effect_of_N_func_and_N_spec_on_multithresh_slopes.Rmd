@@ -27,7 +27,9 @@ library(cowplot)
 source("Multifunc_simulations_functions.R")
 ```
 
-# simulate full diversity experiment
+##Variable number of function simulation
+
+###Simulate full diversity experiment
 
 One can set the same parameters as in most other simulations:
 
@@ -42,7 +44,7 @@ Additional parameters for `method = comp`:
 + `compfunc` : which functions should experience complementarity (`all` or any combination of `func.names`)
 + `r` : the *growthrate* of the complementarity factor
 
-
+Here we use a maximum replication of 200 unique species combinations as otherwise the computation becomes tedious.
 ```{r}
 set.seed(777)
 
@@ -74,8 +76,7 @@ AvFunc_func <- AvFunc %>%
   mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
-### Variable number of function simulation
-
+###Variable number of function simulation
 ```{r}
 # empty dataframe to store results
 RES_func <- data.frame(thresholds = numeric(), 
@@ -143,8 +144,44 @@ ggplot(., aes(x=thresholds*100, y=mean_Estimate), size = 0.5, alpha = 0.3)+
 FUNC
 ```
 
-### Variable number of species simulation
+## Variable number of species simulation
 
+###Simulate full diversity experiment
+
+Here we use the full replication
+
+```{r}
+set.seed(777)
+
+specnum <- 15
+funcnum <- 9
+
+distribution = "runif"
+
+FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
+
+func.names <- as.character( unique( FuncMat$Functions))
+spec.names <- as.character( unique( FuncMat$Species))
+
+maxrep <- choose(specnum, floor(specnum/2))
+#maxrep <- 200 #using the full replications is prohibitive
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
+
+method = "av"
+
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+# standardize functions
+AvFunc_func <- AvFunc %>% 
+  mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
+```
+
+### Variable number of species simulation
 ```{r}
 
 # empty dataframe to store results
