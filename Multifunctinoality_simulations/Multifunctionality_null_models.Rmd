@@ -165,7 +165,7 @@ AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) /
 AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness) 
 
 SingleFunc <- AvFunc_long %>%
-  mutate(FuncVal = round(FuncVal,2)) %>% 
+  mutate(FuncVal = round(FuncVal,3)) %>% 
   group_by(Richness, Function, FuncVal) %>% 
   summarize(n = n()) %>% 
   ggplot(., aes(x=Richness, y=FuncVal, colour = n))+
@@ -284,8 +284,8 @@ Exact same code as above, but with the `method = "comp"` chosen to simulate comp
 ```{r, "Avfunc_comp"}
 # code takes ~5 min to run for 15 species. Set to lower value for higher number of species! 
 
-# maxrep <- choose(specnum, floor(specnum/2))
-maxrep <- 500
+maxrep <- choose(specnum, floor(specnum/2))
+#maxrep <- 500
 
 # simulate plot x species matrix
 SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
@@ -325,7 +325,7 @@ AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) /
 AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness) 
 
 SingleFunc_comp <- AvFunc_long %>%
-  mutate(FuncVal = round(FuncVal,2)) %>% 
+  mutate(FuncVal = round(FuncVal,3)) %>% 
   group_by(Richness, Function, FuncVal) %>% 
   summarize(n = n()) %>% 
   ggplot(., aes(x=Richness, y=FuncVal, colour = n))+
