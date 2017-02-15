@@ -203,7 +203,7 @@ funcnum <- ncol(biodepth_func)-1
 FuncMat <- gather(biodepth_func, Functions, Funcval, -Species)
 func.names <- as.character( unique( FuncMat$Functions))
 
-SpecMat <- SpeciesMatrix(specnum, maxrep = 500)
+SpecMat <- SpeciesMatrix(specnum, maxrep = 511)
 dimnames(SpecMat)[[2]] <- spec.names
 
 method = "av"
