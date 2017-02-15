@@ -48,7 +48,7 @@ The possible methods are:
 
 + `av` for average. Here the mixture values at each diversity level are the unweighted single - species function values. So simply the mean (or average) value of the community.
 
-+ `comp` for complementarity Here one, several or all functions are multiplied with a complementary factor before the average is calculated. The complementary factor is always a saturating  function of the richness level of the form:
++ `comp` for complementarity. Here one, several or all functions are multiplied with a complementary factor before the average is calculated. The complementary factor is always a saturating  function of the richness level of the form:
 
 $$ compfac = CF * ( 1 - ( 1 - \frac{1}{CF} ) * exp{ ( 1 - Richness ^ r )} $$
 
