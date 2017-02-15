@@ -42,9 +42,9 @@ source("Multifunc_simulations_functions.R")
 ```{r, "choose country"}
 # choose model (by setting vlaue to TRUE)
 
-Single_dist <- FALSE #produces Figure S1
+Single_dist <- TRUE #produces Figure S1
 Multi_dist <- FALSE
-Biodepth_data <- TRUE #produces Figure 6
+Biodepth_data <- FALSE #produces Figure 6
 Biodepth_sim <- FALSE
 
 
@@ -96,13 +96,16 @@ funcnum <- 9
 
 distribution = "rnorm" #choose your distribution (one off ?Distributions)
 
+maxrep <-  max(sapply(1:specnum, function(x) choose(specnum,x)))
+#maxrep <-  500
+
 FuncMat <- FunctionValue(specnum,funcnum, distribution, mean = 30, sd = 6)  
 
 func.names <- as.character( unique( FuncMat$Functions))
 
 spec.names <- as.character( unique( FuncMat$Species))
 
-SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = 200)
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
 
 method = "av" #av or comp
 
@@ -203,7 +206,7 @@ funcnum <- ncol(biodepth_func)-1
 FuncMat <- gather(biodepth_func, Functions, Funcval, -Species)
 func.names <- as.character( unique( FuncMat$Functions))
 
-SpecMat <- SpeciesMatrix(specnum, maxrep = 511)
+SpecMat <- SpeciesMatrix(specnum, maxrep = 500)
 dimnames(SpecMat)[[2]] <- spec.names
 
 method = "av"
