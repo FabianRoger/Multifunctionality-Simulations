@@ -17,7 +17,7 @@ This script sets up the simulations to explain the link between the distribution
 
 
 ```{r, echo = FALSE, "load packages"}
-library(multifunc)
+
 library(ggplot2)
 library(Cairo)
 library(cowplot)
