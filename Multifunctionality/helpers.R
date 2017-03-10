@@ -63,14 +63,14 @@ SpeciesList <- function(specnum) {
 
 FunctionList <- function(funcnum) {
   # creates character vector with funcnam function names. Function are named as 
-  # follows: Func_01, Func_02 (...) 
+  # follows: F 1, F 2 (...) 
   #
   # Args:
-  #   funcnum: integer, positive number giving the number of FGunctions to be named
+  #   funcnum: integer, positive number giving the number of Functions to be named
   #
   # Returns: character vector with funcnam Function names
   
-  func.list <- paste("Func", formatC(1:funcnum, width=2, flag="0"),sep = "_")
+  func.list <- paste("F", c(1:funcnum),sep = " ")
   
   return(func.list)
   
@@ -188,6 +188,7 @@ FunctionValue <- function(specnum = NULL, funcnum = NULL,
   }
   
   if(TRUE %in% c(SpecFunc$Funcval < 0)) {
+    warning("negative function values were generated wherefore all values were shifted by abs(min(function value))")
     SpecFunc$Funcval <- SpecFunc$Funcval + abs(min(SpecFunc$Funcval))
   }
   
@@ -239,7 +240,6 @@ AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "Func_01", 
   specnum <- length(spec)
   
   # define function to be applied to each plot for method average or complementarity
-  
   FUNC <- FUNC %>% spread(Functions, Funcval)
   
   if (is.na(pmatch(method, c("average", "complementarity"))) == FALSE) {
@@ -249,7 +249,6 @@ AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "Func_01", 
   }
   
   # define function to be applied to each plot for selection effect
-  
   if (is.na(pmatch(method, "selection")) == FALSE) {
     
     spec.weights <- FUNC[, which(colnames(FUNC) == selfunc)]^selfac
@@ -272,7 +271,7 @@ AverageFunction <- function(SPM, FUNC, method = "average", selfunc = "Func_01", 
   
   if (is.na(pmatch(method, "complementarity")) == FALSE) {
     
-    if (compfunc == "all") {
+    if ("all" %in% compfunc) {
       
       SPM[ , ( specnum + 2) : ncol( SPM)] <- SPM[ , ( specnum + 2) : ncol( SPM)] * 
         (CF * ( 1 - ( 1 - 1/CF ) * exp(1-SPM$Richness^r)))
@@ -348,5 +347,133 @@ SlopeSummary <- function(MT) {
   
   return(Signchange.R)
 }
+
+
+########### function taken form the multifunc package ###################
+
+# The functions below are taken from the multifunc package and written by Jarret Byrnes (https://github.com/jebyrnes/multifunc)
+
+# They are included here in a modified form as 
+# 1) the package is not available on CRAN for the moment
+# 2) the package loads plyr which conflicts with dplyr if loaded afterwards
+
+#full citation:
+
+# Byrnes, J. E. K., Gamfeldt, L., Isbell, F., Lefcheck, J. S.,
+# Griffin, J. N., Hector, A., Cardinale, B. J., Hooper, D. U., Dee, L. E.,
+# Emmett Duffy, J. (2014), 
+# Investigating the relationship between biodiversity and ecosystem multifunctionality: 
+# challenges and solutions. 
+# Methods in Ecology and Evolution, 5: 111–124. doi: 10.1111/2041-210X.12143
+
+# note that I re-wrote the functions below in order to not rely on plyr
+
+#getFuncsMaxed
+############################################
+
+getFuncsMaxed<-function(adf, vars=NA, threshmin=0.05, threshmax=0.99, threshstep=0.01, proportion=F, prepend="Diversity", maxN=1) {
+  
+  thresholds <- seq(threshmin,threshmax,threshstep)
+  
+  ret_list <- lapply(thresholds, function(x) {
+    
+    df <- getFuncMaxed(adf,
+                       vars=vars,
+                       thresh= x, #the threshold
+                       #proportion=proportion,
+                       maxN=maxN,
+                       prepend=c(prepend))
+    
+    df$thresh <- as.numeric(x)
+    
+    #to match original output exactly
+    df$thresholds <- df$thresh
+    df <- df[,c(5,1:4)]
+    
+    return(df)
+  })
+  
+  ret <- bind_rows(ret_list)
+  
+}
+
+
+
+#getFuncMaxed
+################
+getFuncMaxed<-function(adf, vars=NA, thresh=0.7, prepend="Diversity", maxN=1){
+  if(is.na(vars)[1]) stop("You need to specify some response variable names")
+  
+  #scan across all functions, see which are >= a threshold
+  #funcMaxed<-rowSums(colwise(function(x) x >= (thresh*max(x, na.rm=T)))(adf[,which(names(adf)%in%vars)]))
+  
+  getMaxValue<-function(x){
+    l<-length(x)    
+    mean( sort(x, na.last=F)[l:(l-maxN+1)], na.rm=T)
+  }
+  
+  funcMaxed<-rowSums(apply(adf[,which(names(adf)%in%vars)], 2, function(x) x >= thresh*getMaxValue(x)))
+  
+  #bind together the prepend columns and the functions at or above a threshold
+  ret<-data.frame(cbind(adf[,which(names(adf) %in% prepend)], funcMaxed))
+  names(ret) <- c(names(adf)[which(names(adf) %in% prepend)], "funcMaxed")
+  
+  #how many functions were considered
+  ret$nFunc<-length(vars)
+  
+  ret
+}
+############################################
+
+
+
+# getCoefTab
+############################################
+getCoefTab<-function(eqn, fun=glm, data, groupVar="thresholds", coefVar, ...){
+  
+  getCoef <- function(adf, ...) {
+    
+    if(length(unique(adf[[ as.character(eqn[[2]]) ]]))==1){ #in case all functions perform exactly the same, the slope is a flat line
+      
+      df <- data.frame(t(c(0,0,NA,1)))
+      colnames(df) <- c("Estimate", "Std. Error", "t value", "Pr(>|t|)")
+      return(df)
+      
+    } 
+    
+    options(warn=2)
+    
+    #use try-catch in case there are errors
+    aFit<-try(fun(eqn, data=adf, ...))
+    
+    options(warn=0)
+    
+    #if there was a problem, catch it and just return NAs for this coefficient
+    if("try-error" %in% class(aFit)) return(rep(NA, 4))
+    
+    if("glm" %in% class(aFit)) {    if(!aFit$converged) return(rep(NA, 4))	}
+    
+    coefInfo<-summary(aFit)$coef
+    
+    idx<-which(rownames(coefInfo) == coefVar)
+    
+    df <- data.frame(t(coefInfo[idx,]))
+    colnames(df) <- c("Estimate", "Std. Error", "t value", "Pr(>|t|)")
+    
+    return(df)
+  } 
+  
+  thresh_list <- split(data, data[, groupVar])
+  ret_list <- lapply(thresh_list, getCoef)
+  
+  ret <- bind_rows(ret_list, .id = "thresholds")
+  
+  ret$thresholds <- as.numeric(ret$thresholds)
+  
+  return(ret)
+  
+}
+############################################
+
   
 
