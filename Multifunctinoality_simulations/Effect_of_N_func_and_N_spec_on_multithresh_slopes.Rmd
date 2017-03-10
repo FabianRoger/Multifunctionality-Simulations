@@ -6,7 +6,9 @@ output:
 
 This script produces:
 
-+ Figure 4
++ Figure 3 b & c
+
+(see `Effect on averaging approach` below for Figure 3 a)
 
 This script sets up the simulations to show the effect of including a varying number of functions and (separately) a varying number of species on the slope pattern produced by the multithreshold approach. 
 
@@ -255,7 +257,7 @@ This script sets up the simulations to show the effect of including a different 
 
 From the predefined set of functions we draw all possible sub-sets of function combinations of size 1 : `funcnum`. For each subset we calculate the $average multifunctionailty \sim diversity$ slope. 
 
-**Choosing the pre-set values produces Figure 3** which shows the relationship of the slope with number of functions. Figure 3 includes scenarios with 0 , 3, 6 and 9 (all) functions subjected to complementary. 
+**Choosing the pre-set values produces Figure 3a** which shows the relationship of the slope with number of functions. Figure 3 includes scenarios with 0 , 3, 6 and 9 (all) functions subjected to complementary. 
 
 You can set the same parameters as in most other simulations:
 
@@ -387,14 +389,6 @@ plot_av <- Slope_res %>%
 
 
 
-
-
-
-
-
-
-
-
 ### Arrange plots
 ```{r, fig.width = 10, fig.height=4}
 # arrange plots and save
@@ -405,7 +399,7 @@ plot <- plot_grid(plot_av, FUNC, SPEC, nrow = 1,
                       label_size = 15)
 
 plot
-ggsave("Figure_4.pdf", plot, height = 4, width = 10)
+ggsave("Figure_3.pdf", plot, height = 4, width = 10)
 
 ```
 
