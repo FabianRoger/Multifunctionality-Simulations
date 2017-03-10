@@ -100,7 +100,6 @@ The slopes shown in the previous figure are plotted against threshold values ove
 
 You need to have the following packages installed to run the app. (Older or newer package versions might work but it's not tested):
 
-+ multifunc_0.7.0
 + ggplot2_2.2.0     
 + corrplot_0.77
 + RColorBrewer_1.1-2
