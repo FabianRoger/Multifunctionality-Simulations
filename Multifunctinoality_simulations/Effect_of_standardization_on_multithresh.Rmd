@@ -25,7 +25,7 @@ The mean and standard deviation of the function from the monoculture data from t
 
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE, "packages"}
-library(multifunc) #make sure that you don't have dplyr allready loaded otherwise the code will fail because of name conflicts
+
 library(dplyr)
 library(tidyr)
 library(ggplot2)
