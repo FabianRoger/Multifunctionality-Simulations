@@ -14,7 +14,7 @@ This script produces:
 
 
 ```{r, "load packages"}
-library(multifunc)
+
 library(ggplot2)
 library(Cairo)
 library(grid)
@@ -83,7 +83,6 @@ FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
 
 ### Plot function values and function correlations
 ```{r, "corrplot"}
-#, out.width='.49\\linewidth', fig.show='hold'}
 
 FuncMat_plot <- 
   FuncMat %>% 
