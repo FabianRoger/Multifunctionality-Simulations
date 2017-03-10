@@ -6,7 +6,7 @@ output:
 
 This script produces:
 
-+ Figure 6
++ Figure 4
 + Figure S1
 
 This script sets up the simulations to show the effect of standardization on the multithreshold approach. It includes 4 different scenarios.
@@ -18,7 +18,7 @@ All function values are drawn from a single distribution. **Choosing the pre-set
 Different parameters can be specified for each function (which are supplied to the same distribution).
 
 + `Biodepth_data`:
-The monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used to simulate the null-expectation for the multithreshold approach. **Choosing Germany produces Figure 6**
+The monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used to simulate the null-expectation for the multithreshold approach. **Choosing Germany produces Figure 4**
 
 + `Biodepth_sim
 The mean and standard deviation of the function from the monoculture data from the BIODEPTH experiment (included in the `multifunc` package) are used as distribution values for a normal distribution. Special case of `Multi_dist`.
@@ -44,7 +44,7 @@ source("Multifunc_simulations_functions.R")
 
 Single_dist <- TRUE #produces Figure S1
 Multi_dist <- FALSE
-Biodepth_data <- FALSE #produces Figure 6
+Biodepth_data <- FALSE #produces Figure 4
 Biodepth_sim <- FALSE
 
 
@@ -461,7 +461,7 @@ if(sum(Biodepth_data + Biodepth_sim) ==1) {
 plot
 
 if(Biodepth_data) {
-  ggsave("Figure_6.pdf", plot, height = 6, width = 10)
+  ggsave("Figure_4.pdf", plot, height = 6, width = 10)
 }
 
 if(Single_dist) {
