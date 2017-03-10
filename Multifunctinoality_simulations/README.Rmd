@@ -17,27 +17,22 @@ In [this script](Multifunctionality_null_models.Rmd)  we set up the simulations 
 
 + This script produces **Figure_2**
 
-###Number_of_Func_no_effect_on_Slope.Rmd
-In [this script](Number_of_Func_no_effect_on_Slope.Rmd) we set up the simulations to show the effect of including a different number of functions on the slope of the *average multifunctionality ~ diveristy* relationship.
+###Effect_of_N_func_and_N_spec_on_multithresh_slopes.Rmd
+In [this script](Effect_of_N_func_and_N_spec_on_slopes.Rmd) we set up the simulations to show the effect of including a varying number of functions and (separately) a varying number of species on the slope pattern produced by the multithreshold approach. (Figure 3 b,c)
+
+We also set up the simulations to show the effect of including a different number of functions on the slope of the *average multifunctionality ~ diveristy* relationship. (Figure 3 a)
 
 + This script produces **Figure_3**
-
-###Effect_of_N_func_and_N_spec_on_multithresh_slopes.Rmd
-In [this script](Effect_of_N_func_and_N_spec_on_multithresh_slopes.Rmd) we set up the simulations to show the effect of including a varying number of functions and (separately) a varying number of species on the slope pattern produced by the multithreshold approach. 
-
-+ This script produces **Figure_4**
-
-###Explanation_of_slope_pattern.Rmd
-This [this script](Explanation_of_slope_pattern.Rmd) up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. 
-
-+ This script produces **Figure_5** (within Box 2)
 
 ###Effect_of_standardization_on_multithresh.Rmd
 In [this script](Effect_of_standardization_on_multithresh.Rmd) we set up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. 
 
-+ This script produces **Figure_6** (for method `Biodepth_data`)
++ This script produces **Figure_4** (for method `Biodepth_data`)
 
 + This script produces **Figure_S1** (for method `Single_dist`)
+
+###Explanation_of_slope_pattern.Rmd
+This [this script](Explanation_of_slope_pattern.Rmd) up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. This figure and the accompanying text is not part of the final publication but is now part of the shiny app. 
 
 ###Session info
 
