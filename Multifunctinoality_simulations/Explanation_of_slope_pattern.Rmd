@@ -226,6 +226,7 @@ Figure_5 <- plot_grid(Tile, patterexp1, patterexp2,
 
 
 ggsave("Figure_5.pdf", Figure_5, width = 15, height = 5, device=cairo_pdf)
+ggsave("Figure_5.png", Figure_5, width = 15, height = 5)
 
 plot(Figure_5)
 
