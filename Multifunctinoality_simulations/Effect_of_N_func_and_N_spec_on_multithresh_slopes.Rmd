@@ -18,7 +18,7 @@ For the **variable number of species simulation** we hold the number of function
 
 
 ```{r, echo = FALSE, warning=FALSE, message=FALSE, "load packages"}
-library(multifunc)
+
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -26,6 +26,8 @@ library(cowplot)
 
 source("Multifunc_simulations_functions.R")
 ```
+
+#Effect on multithreshold approach
 
 ##Variable number of function simulation
 
@@ -103,7 +105,7 @@ for (i in c(ceiling(funcnum/3), 2*ceiling(funcnum/3), funcnum)) {
                                  threshmax=0.99, prepend=c("Richness"), maxN=1)
     # slopes  
     mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm, 
-                                  data=mixedThresh,coefVar="Richness")
+                                  data=mixedThresh, coefVar="Richness")
     
     colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",
                                      "Std. Error", "t value", "Pr(>|t|)")
@@ -121,7 +123,7 @@ for (i in c(ceiling(funcnum/3), 2*ceiling(funcnum/3), funcnum)) {
 
 ### Plot with variable number of functions
 
-```{r}
+```{r, fig.height = 4, fig.width = 4}
 
 FUNC <- RES_func %>% 
   group_by(thresholds, nfunc) %>% 
@@ -135,7 +137,10 @@ ggplot(., aes(x=thresholds*100, y=mean_Estimate), size = 0.5, alpha = 0.3)+
   geom_abline(intercept=0, slope=0, lwd=0.5, linetype=2) + 
   theme_bw(base_size=15)+
   scale_fill_brewer(guide = FALSE, palette = "Set1")+
-  scale_color_brewer(guide = guide_legend(title = paste("Number of functions", paste("(", specnum, " species)", sep = ""), sep = "\n")),
+  scale_color_brewer(guide = guide_legend(title = paste("Number of functions", 
+                                                        paste("(", specnum, " species)", 
+                                                              sep = ""), sep = "\n"),
+                                          nrow=2,byrow=TRUE),
                      palette = "Set1")+
   theme_classic()+
   theme(legend.position = "bottom")+
@@ -205,9 +210,7 @@ for (i in c(6, 9, specnum)) {
   mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,
                                 data=mixedThresh, coefVar="Richness")
     
-  colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",
-                                   "Std. Error", "t value", "Pr(>|t|)")
-    
+  
   temp <- mixedLinearSlopes %>% 
       select(thresholds, Estimate, `Std. Error`) %>% 
       mutate(nspec = i)
@@ -219,7 +222,7 @@ for (i in c(6, 9, specnum)) {
 
 ### Plot with variable number of species
 
-```{r}
+```{r, fig.height = 4, fig.width = 4}
 #plot
 SPEC <- RES_spec %>% 
   group_by(thresholds, nspec) %>% 
@@ -232,7 +235,10 @@ ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
   geom_abline(intercept=0, slope=0, lwd=0.5, linetype=2) + 
   theme_bw(base_size=15)+
   scale_fill_brewer(guide = FALSE, palette = "Set1")+
-  scale_color_brewer(guide = guide_legend(title = paste("Number of species", paste("(", funcnum, " functions)", sep = ""), sep = "\n")),
+  scale_color_brewer(guide = guide_legend(title = paste("Number of species", 
+                                                        paste("(", funcnum, " functions)", 
+                                                              sep = ""), sep = "\n"),
+                                          nrow=2,byrow=TRUE),
                      palette = "Set1")+
   theme_classic()+
   theme(legend.position = "bottom")+
@@ -241,17 +247,165 @@ ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
 SPEC
 ```
 
+
+
+#Effect on averaging approach
+
+This script sets up the simulations to show the effect of including a different number of functions (from a set of `funcnum` functions) on the slope of the $average multifunctionality \sim diveristy$ relationship. We simulate all scenarios with 0 : `funcnum` functions subjected to complementary.
+
+From the predefined set of functions we draw all possible sub-sets of function combinations of size 1 : `funcnum`. For each subset we calculate the $average multifunctionailty \sim diversity$ slope. 
+
+**Choosing the pre-set values produces Figure 3** which shows the relationship of the slope with number of functions. Figure 3 includes scenarios with 0 , 3, 6 and 9 (all) functions subjected to complementary. 
+
+You can set the same parameters as in most other simulations:
+
++ `distribution` : the distribution function. The names of the parameters must be changed accordingly in `FunctionValue()`
++ `specnum` : the number of species
++ `funcnum` : the number of functions 
+
+`method` is chosen automatically during the simulation
+
+Additional parameters for `method = comp`:
+
++ `CF` : maximum complementary factor 
++ `r` : the 'growth-rate' of the complementary factor
+
+`compfunc` is set automatically during the simulation
+
+```{r, "function values"}
+specnum <- 12
+funcnum <- 9
+
+distribution = "runif"
+
+maxrep <- choose(specnum, floor(specnum/2))
+#maxrep <- 500
+
+FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
+
+func.names <- as.character( unique( FuncMat$Functions))
+
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
+
+CF = 3
+r = 0.25
+```
+
+###simulation of all possible slopes for 1:`funcnum` functions
+
+```{r, "simulation"}
+
+# empty dataframe to store results
+Slope_res <- data.frame(Estimate = numeric(),
+                        `Std. Error` = numeric(),
+                        `t value` = numeric(),    
+                        `Pr(>|t|)` = numeric(),
+                        nfunc = numeric(),
+                        ncomp = numeric())
+
+# loop over all possible number of functions with complementarity
+for (l in 0:funcnum) {
+  
+set.seed(999)
+
+# choose method = average if no functions with complementarity and method = comp otherwise
+  if(l == 0) {
+    method = "av"
+  }  else {
+    method = "comp"
+    compfunc = func.names[1:l]
+  }
+
+# draw function values and calculate mean function for all richness levels
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+
+# standardize functions
+AvFunc <- AvFunc %>% 
+  select(Richness, one_of(func.names)) %>% 
+  mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
+
+
+# loop over all subsets of function of size 1:funcnum
+for (i in seq_len(funcnum)) { 
+
+  # all poosibel combination of i out of funcnum functions
+  func_comb <- combn(func.names, i)
+  
+  # loop over all function combinations of size i
+  for ( k  in seq_len(ncol(func_comb))) { 
+  
+    # calculate mean function
+    AvFunc_temp <- AvFunc %>%
+      select(Richness, one_of(func_comb[ ,k])) %>% 
+      mutate(meanFunction = rowMeans(.[func_comb[ ,k]]))
+  
+    # fit linear model
+    mod <- lm(meanFunction ~ Richness, data = AvFunc_temp)
+  
+    # get slope estimate
+    est <- summary(mod)$coefficients[2,]
+    
+    # store results
+    Slope_res <- data.frame(t(est)) %>% 
+      mutate(., nfunc = i) %>% 
+      mutate(ncomp = l) %>% 
+      rbind(Slope_res, .)
+  }
+}
+}
+
+
+```
+
+### Plot 
+```{r, warnings = F, "plot figure", fig.height= 4, fig.width= 4}
+plot_av <- Slope_res %>% 
+  filter(ncomp %in% c(0,ceiling(funcnum/3),2*ceiling(funcnum/3),funcnum)) %>% 
+  ggplot(aes(x = nfunc, y = Estimate, colour = as.factor(ncomp)))+
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, jitter.height = 0, dodge.width = 0.75),
+             alpha = 0.5, shape = 21)+
+  geom_smooth(method = "lm", se = F, size = 0.5, 
+              position = position_dodge(width = 0.5))+
+  scale_color_brewer(guide = guide_legend(title = "Number of functions\nwith complementarity",
+                                          nrow=2,byrow=TRUE),
+                     palette = "Set1")+
+  scale_x_continuous(breaks = seq(1,funcnum,1))+
+  labs(y = "Slope estimate",
+       x = "Number of functions considered")+
+  theme_classic()+
+  theme(legend.position = "bottom")
+  
+ plot_av 
+
+# ggsave("Figure_3.pdf", plot, height = 4, width = 6)  
+```
+
+
+
+
+
+
+
+
+
+
+
+
 ### Arrange plots
-```{r}
+```{r, fig.width = 10, fig.height=4}
 # arrange plots and save
-plot <- plot_grid(FUNC, SPEC, nrow = 1,
-                      labels = c("a", "b"),
+plot <- plot_grid(plot_av, FUNC, SPEC, nrow = 1,
+                      labels = c("a", "b", "c"),
                       hjust = -7,
                       vjust = 3,
                       label_size = 15)
 
 plot
-ggsave("Figure_4.pdf", plot, height = 4, width = 8)
+ggsave("Figure_4.pdf", plot, height = 4, width = 10)
 
 ```
 
