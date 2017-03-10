@@ -1,5 +1,5 @@
 ---
-title: "Multithreshold approach with varying number of functions and species"
+title: "Effect of varying number of functions and species on the slope of the multithreshold and the averaging approach "
 output:
   html_document: default
 ---
