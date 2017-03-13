@@ -246,8 +246,6 @@ singleThresh
 mixedLinearSlopes <- getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
                                coefVar="Richness")
 
-colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
-
 p <- SlopeSummary(mixedLinearSlopes)
 
 multiTresh <- ggplot(mixedLinearSlopes, aes(x=thresholds)) +
