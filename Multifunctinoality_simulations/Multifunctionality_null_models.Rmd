@@ -243,7 +243,7 @@ singleThresh
 + The slopes shown in the previous figure are plotted against threshold values over the whole range of possible thresholds.
 
 ```{r, "multithresh"}
-mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+mixedLinearSlopes <- getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
                                coefVar="Richness")
 
 colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")
