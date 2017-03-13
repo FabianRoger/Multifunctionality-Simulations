@@ -245,7 +245,10 @@ hr(), #horizontal line
         ), #simulation tab
 
 tabPanel("Description",
-         withMathJax(includeMarkdown("Description.Rmd"))) 
+         withMathJax(includeMarkdown("Description.Rmd"))),
+
+tabPanel("Slope Pattern",
+         includeHTML("Explanation_of_slope_pattern_shiny.html"))
 
       ) #tabset
     ) #main panle
