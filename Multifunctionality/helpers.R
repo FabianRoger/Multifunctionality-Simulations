@@ -464,11 +464,12 @@ getCoefTab<-function(eqn, fun=glm, data, groupVar="thresholds", coefVar, ...){
   } 
   
   thresh_list <- split(data, data[, groupVar])
+  
   ret_list <- lapply(thresh_list, getCoef)
+  ret <- do.call("rbind", ret_list)
   
-  ret <- bind_rows(ret_list, .id = "thresholds")
-  
-  ret$thresholds <- as.numeric(ret$thresholds)
+  ret$thresholds <- as.numeric(names(thresh_list))
+  ret <- ret[, c("thresholds", "Estimate",  "Std. Error", "t value", "Pr(>|t|)")]
   
   return(ret)
   
