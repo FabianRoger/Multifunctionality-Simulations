@@ -8,13 +8,12 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```
 
-This script produces:
+In this script we set up simulations with correlated function values as in van der Plas et al. (2016) "Jack-of-all-trades effects drive biodiversity–ecosystem multifunctionality relationships in European forests". Note that the implementation differs from the original script from van der Plas et al. as we build the simulations within our framework. The simulations are not included in the manuscript.
 
-+ Figure 2
 
 
 ```{r, "load packages"}
-#library(MASS)
+library(MASS)
 library(ggplot2)
 library(Cairo)
 library(grid)
@@ -27,13 +26,18 @@ library(magrittr)
 source("Multifunc_simulations_functions.R")
 ```
 
+This script is largely identical to the script [Explanation_of_slope_pattern.Rmd](Explanation_of_slope_pattern.Rmd) but the function values are replaced by correlated function values genreated by `mvrnorm`.
+
+set the average correlation with the `COR` argument. Note that not all correlations are mathematically possible, especially not all functions can be negatively correlated to each other. 
+
+**alse note that the `distribution` parameter is irrelevant here, as the values will be replaced by correlated function values**
 
 ```{r, "funcmat"}
 # set seed to replicate analysis:
 set.seed(999)
 
 # number of species
-specnum <- 12
+specnum <- 10
 
 # number of functions
 funcnum <- 9
@@ -41,17 +45,20 @@ funcnum <- 9
 # distribution from which to draw function values
 distribution = "runif"
 
-# choose correlation
+# choose pairwise correlation strength
 COR <- 1
+
+# make correlation matrix (strictly speaking a covariance matrix but for these simulations it does not matter)
+
+Sigma <- matrix(COR, ncol = funcnum, nrow = funcnum)
+diag(Sigma) <- 1
 
 # create function matrix
 FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
 
+# replace function values with correlated function values
 FuncMat_long <- FuncMat %>% spread(Functions, Funcval)
 
-Sigma <- matrix(COR, ncol = funcnum, nrow = funcnum)
-diag(Sigma) <- 1
- 
 FuncMat_long[,2:(funcnum+1)] <- mvrnorm(n = specnum, mu = rep(0, funcnum), Sigma = Sigma)
 
 FuncMat <- FuncMat_long %>% 
@@ -70,13 +77,14 @@ FuncMat_plot <-
   spread(Functions, Funcval) %>% 
   select(-Species)
   
-  
+
 FuncMat_plot %>% 
   mutate(av = rowMeans(.)) %>%
   as.matrix() %>% 
   set_rownames(unique(FuncMat$Species)) %>%
   corrplot( is.corr = F, tl.col = "black", cl.ratio = 0.2, 
            cl.length = 11, method="square")
+
 
 FuncMat_plot %>% cor %>% 
   corrplot(type = "lower", tl.col = "black", cl.ratio = 0.2, 
@@ -201,12 +209,14 @@ singleThresh <- filter(mixedThresh, as.character(thresh) %in% as.character(seq(0
   facet_wrap(~prct)+
   labs(x = "Species richness", y = "Number of functions ≥ threshold")+
   theme_bw(base_size=15)+
-  scale_y_continuous(limits = c(0,10), breaks = seq(0,10,3))+
+ # scale_y_continuous(limits = c(0,10), breaks = seq(0,10,3))+
   scale_x_continuous(breaks = seq(1,15,2))+
   theme(legend.position = "none")
 
 singleThresh
 ```
+
+Note that if you set the correlation to 1, all species must perform all functions at the same level, so each function has the exact same average across species. This means that any given mixture can only provide all functions or no functions above any given threshold - which leads to the binary oucome above. Fitting a linear model to a binary varible will also produce large confidence intervals if the replication is low (as described in van der Plas et al. 2016).
 
 ### Multi-threshold approach for multifunctionality
 
