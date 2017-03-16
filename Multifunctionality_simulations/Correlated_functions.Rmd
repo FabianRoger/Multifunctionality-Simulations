@@ -1,0 +1,240 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+```
+
+This script produces:
+
++ Figure 2
+
+
+```{r, "load packages"}
+#library(MASS)
+library(ggplot2)
+library(Cairo)
+library(grid)
+library(cowplot)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+library(magrittr)
+
+source("Multifunc_simulations_functions.R")
+```
+
+
+```{r, "funcmat"}
+# set seed to replicate analysis:
+set.seed(999)
+
+# number of species
+specnum <- 12
+
+# number of functions
+funcnum <- 9
+
+# distribution from which to draw function values
+distribution = "runif"
+
+# choose correlation
+COR <- 1
+
+# create function matrix
+FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
+
+FuncMat_long <- FuncMat %>% spread(Functions, Funcval)
+
+Sigma <- matrix(COR, ncol = funcnum, nrow = funcnum)
+diag(Sigma) <- 1
+ 
+FuncMat_long[,2:(funcnum+1)] <- mvrnorm(n = specnum, mu = rep(0, funcnum), Sigma = Sigma)
+
+FuncMat <- FuncMat_long %>% 
+  gather(Functions, Funcval, -Species) %>% 
+  group_by(Functions) %>% 
+  mutate(Funcval = Funcval + abs(min(Funcval)))
+```
+
+### Plot function values and function correlations
+```{r, "corrplot"}
+
+FuncMat_plot <- 
+  FuncMat %>% 
+  group_by(Functions) %>% 
+  mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval))) %>% 
+  spread(Functions, Funcval) %>% 
+  select(-Species)
+  
+  
+FuncMat_plot %>% 
+  mutate(av = rowMeans(.)) %>%
+  as.matrix() %>% 
+  set_rownames(unique(FuncMat$Species)) %>%
+  corrplot( is.corr = F, tl.col = "black", cl.ratio = 0.2, 
+           cl.length = 11, method="square")
+
+FuncMat_plot %>% cor %>% 
+  corrplot(type = "lower", tl.col = "black", cl.ratio = 0.2, 
+           cl.length = 11, number.cex = 0.6, addCoef.col = "#323232", diag = F, method="ellipse")
+
+```
+
+```{r, "Avfunc"}
+# code takes ~5 min to run for 15 species. Set to lower value for higher number of species! 
+
+maxrep <- choose(specnum, floor(specnum/2))
+#maxrep <- 10
+
+# simulate plot x species matrix
+SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
+
+# select method and additional parameters if appropriate by setting the `if` statement to `TRUE`
+if (TRUE) {method = "av"}
+
+if (FALSE) {method = "comp"
+            CF = 3
+            compfunc = c("F 1", "F 6")
+            r = 0.25}
+
+
+# Average function
+AvFunc <- AverageFunction(SpecMat, FuncMat,
+                          method = method, 
+                          CF = CF, 
+                          compfunc = compfunc,
+                          r = r)
+```
+
+### Standardize function values
+
+There are two main ways to standardize the function values:
+
++ between 0 and 1 with $x_{stand} = \frac{x - min(x)}{max(x) - min(x)}$
+
++ by the maximum with $x_{stand} = \frac{x}{max(x)}$
+
+```{r, "standardize"}
+# extract function names
+func.names <- as.character( unique( FuncMat$Functions))
+
+# standardize between 0 and 1
+AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
+
+# alternative standardize by maximum
+# AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
+```
+
+### Plot single function values
+```{r, "single_func"}
+AvFunc_long <- gather(AvFunc[, -c(1:specnum)], Function, FuncVal, -Richness) 
+
+SingleFunc <- AvFunc_long %>%
+  mutate(FuncVal = round(FuncVal,3)) %>% 
+  group_by(Richness, Function, FuncVal) %>% 
+  summarize(n = n()) %>% 
+  ggplot(., aes(x=Richness, y=FuncVal, colour = n))+
+  geom_point( size = 1, position = position_jitter(width = 0.1))+
+  facet_wrap(~Function)+
+  theme_bw(base_size=15)+
+  stat_smooth(data = AvFunc_long, aes(x = Richness, y = FuncVal), method="lm", colour = "#de2d26") +
+  xlab("\nSpecies richness") +
+  ylab("Value of function\n") +
+  theme(panel.grid = element_blank(), legend.position = "none")
+
+SingleFunc
+
+```
+
+### Average approach for multifunctionality
+
++ Multifunctionality is calculated as the average value of the standardized single functions.
+
+```{r, "multifunc_av"}
+
+# add averaged multifunctional index
+AvFunc$meanFunction <- rowMeans(AvFunc[,func.names])
+
+# plot
+AverageFunc <- 
+  AvFunc %>%
+  select(Richness, meanFunction) %>% 
+  mutate(meanFunction = round(meanFunction,3)) %>% 
+  group_by(Richness, meanFunction) %>% 
+  summarize(n = n()) %>% 
+  ggplot(., aes(x=Richness, y=meanFunction, colour = n))+
+  geom_point(size = 2, position = position_jitter(width = 0.1))+
+    theme_bw(base_size=15)+
+    stat_smooth(data = AvFunc, aes(x = Richness, y = meanFunction), method="lm", colour = "#de2d26") +
+    xlab("\nSpecies richness") +
+    ylab("Average value of standardized functions\n")+
+  theme(legend.position = "none")+
+   # scale_y_continuous(limits = c(0.25,0.75))+
+    scale_x_continuous(breaks = seq(1,15,2))
+
+AverageFunc
+
+```
+
+### Single-threshold approach for multifunctionality
+
++ Multifunctionality is calculated as the number of functions that are sustained above a pre-defined threshold - calculated as a percentage of the maximum observed function value across all plots.
+
+```{r, "single_thresh"}
+
+mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
+                           prepend=c("Richness"), maxN=1)
+
+
+singleThresh <- filter(mixedThresh, as.character(thresh) %in% as.character(seq(0,1,0.1))) %>% 
+  mutate(prct = paste(thresholds * 100, "%")) %>% 
+  select(Richness, funcMaxed, prct) %>% 
+  group_by(Richness, funcMaxed, prct) %>% 
+  summarise(n = n()) %>% 
+  ggplot(., aes(x = Richness, y = funcMaxed, fill = n))+
+  geom_point(shape = 21, size = 2.5, colour = "black", stroke = 0.2)+
+  stat_smooth(method = "lm", colour = "#de2d26", se = F)+
+  facet_wrap(~prct)+
+  labs(x = "Species richness", y = "Number of functions ≥ threshold")+
+  theme_bw(base_size=15)+
+  scale_y_continuous(limits = c(0,10), breaks = seq(0,10,3))+
+  scale_x_continuous(breaks = seq(1,15,2))+
+  theme(legend.position = "none")
+
+singleThresh
+```
+
+### Multi-threshold approach for multifunctionality
+
++ The slopes shown in the previous figure are plotted against threshold values over the whole range of possible thresholds.
+
+```{r, "multithresh"}
+mixedLinearSlopes <- getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
+                               coefVar="Richness")
+
+p <- SlopeSummary(mixedLinearSlopes)
+
+multiTresh <- ggplot(mixedLinearSlopes, aes(x=thresholds)) +
+  geom_ribbon(fill="#deebf7", aes(x=thresholds*100, ymin=Estimate- 1.96*mixedLinearSlopes[["Std. Error"]],                              ymax=Estimate+1.96*mixedLinearSlopes[["Std. Error"]])) + 
+  geom_point(aes(x=thresholds*100, y=Estimate), colour = "#132B43") +
+  annotate("segment", 
+           x = p$Estimate_sign_change*100 + 7,
+           xend = p$Estimate_sign_change*100,
+           y = 0.25*max(mixedLinearSlopes$Estimate),
+           yend = 0)+
+  annotate("label",
+           x = p$Estimate_sign_change*100 + 7,
+           y = 0.25*max(mixedLinearSlopes$Estimate),
+           label = paste("p: ", round(p$Estimate_sign_change*100), "%", sep = ""))+
+  ylab("Slope") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
+  theme_bw(base_size=15)
+  
+  
+
+multiTresh 
+```
