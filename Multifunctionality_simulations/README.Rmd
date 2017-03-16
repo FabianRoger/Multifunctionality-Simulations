@@ -8,9 +8,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ### Multifunc_simulations_functions.R
-In [this script](Multifunc_simulations_functions.R) we define the functions that we use for the simulations in the sctipts below. The functions are described in detail in this script. All other scripts load this script and won't run without it. 
+In [this script](Multifunc_simulations_functions.R) we define the functions that we use for the simulations in the scripts below. The functions are described in detail in this script. All other scripts load this script and won't run without it. 
 
 **The scripts below are R Markdown scripts and can be nit to HTML/PDF (requires \LaTeX) from within RStudio / with pandoc**
+
+**each of the scripts below can be downloaded and excecuted independently but all rely on the [Multifunc_simulations_functions.R](Multifunc_simulations_functions.R) script**
 
 ### Multifunctionality_null_models.Rmd
 In [this script](Multifunctionality_null_models.Rmd)  we set up the simulations for the null expectation of the three most common multifunctionality metrics
