@@ -29,11 +29,11 @@ library(cowplot)
 source("Multifunc_simulations_functions.R")
 ```
 
-#Effect on multithreshold approach
+# Effect on multithreshold approach
 
-##Variable number of function simulation
+## Variable number of function simulation
 
-###Simulate full diversity experiment
+### Simulate full diversity experiment
 
 One can set the same parameters as in most other simulations:
 
@@ -80,7 +80,7 @@ AvFunc_func <- AvFunc %>%
   mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
-###Variable number of function simulation
+### Variable number of function simulation
 ```{r}
 # empty dataframe to store results
 RES_func <- data.frame(thresholds = numeric(), 
@@ -153,7 +153,7 @@ FUNC
 
 ## Variable number of species simulation
 
-###Simulate full diversity experiment
+### Simulate full diversity experiment
 
 Here we use the full replication
 
@@ -251,7 +251,7 @@ SPEC
 
 
 
-#Effect on averaging approach
+# Effect on averaging approach
 
 This script sets up the simulations to show the effect of including a different number of functions (from a set of `funcnum` functions) on the slope of the $average multifunctionality \sim diveristy$ relationship. We simulate all scenarios with 0 : `funcnum` functions subjected to complementary.
 
@@ -293,7 +293,7 @@ CF = 3
 r = 0.25
 ```
 
-###simulation of all possible slopes for 1:`funcnum` functions
+### simulation of all possible slopes for 1:`funcnum` functions
 
 ```{r, "simulation"}
 
