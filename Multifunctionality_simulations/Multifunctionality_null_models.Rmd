@@ -284,8 +284,8 @@ Exact same code as above, but with the `method = "comp"` chosen to simulate comp
 maxrep <- choose(specnum, floor(specnum/2))
 #maxrep <- 500
 
-# simulate plot x species matrix
-SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
+# simulate plot x species matrix (If not allready done for Scenario 1)
+#SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
 
 # select method and additional parameters if appropriate by setting the `if` statement to `TRUE`
 if (FALSE) {method = "av"}
