@@ -65,7 +65,7 @@ To make the analysis reproducible we can set a seed with `set.seed.
 
 `FunctionValue` takes three main arguments, `specnum`, `funcnum` and `distribution` and returns a data-frame with function values for all species and functions. 
 
-**note that the distribution is irrelevant here, as the values will be replaced by correlated function values**
+** If you change the distribution you have to change the distribution paramters in `FunctionValue`**
 
 ### choose quantile
 
