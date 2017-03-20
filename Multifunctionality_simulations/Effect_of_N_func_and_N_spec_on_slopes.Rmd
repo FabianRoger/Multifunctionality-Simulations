@@ -77,7 +77,8 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 
 # standardize functions
 AvFunc_func <- AvFunc %>% 
-  mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
+  mutate_at(vars(one_of(func.names)), function(x) {(x) / max(x)})
+  #mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
 ### Variable number of function simulation
@@ -185,7 +186,8 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 
 # standardize functions
 AvFunc_func <- AvFunc %>% 
-  mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
+   mutate_at(vars(one_of(func.names)), function(x) {(x / max(x))})
+ # mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
 ### Variable number of species simulation
@@ -328,7 +330,8 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 # standardize functions
 AvFunc <- AvFunc %>% 
   select(Richness, one_of(func.names)) %>% 
-  mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
+  mutate_at(vars(one_of(func.names)), function(x) {x / max(x)})
+  #mutate_at(vars(one_of(func.names)), function(x) {(x - min(x)) / (max(x) - min(x))})
 
 
 # loop over all subsets of function of size 1:funcnum
