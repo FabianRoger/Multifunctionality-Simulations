@@ -99,7 +99,7 @@ FuncMat <- FunctionValue(specnum,funcnum, distribution, min = 0, max = 1)
 FuncMat_plot <- 
   FuncMat %>% 
   group_by(Functions) %>% 
-  mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval))) %>% 
+  mutate(Funcval = Funcval / max(Funcval)) %>% 
   spread(Functions, Funcval) %>% 
   select(-Species)
   
@@ -164,11 +164,11 @@ There are two main ways to standardize the function values:
 # extract function names
 func.names <- as.character( unique( FuncMat$Functions))
 
-# standardize between 0 and 1
-AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
+# standardize by maximum
+AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
 
-# alternative standardize by maximum
-# AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
+# alternative standardize between 0 and 1
+# AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
 ### Plot single function values
@@ -321,11 +321,11 @@ Exact same code as above, but with the `method = "comp"` chosen to simulate comp
 ```{r, "Avfunc_comp"}
 # code takes ~5 min to run for 15 species. Set to lower value for higher number of species! 
 
-maxrep <- choose(specnum, floor(specnum/2))
-#maxrep <- 500
+# maxrep <- choose(specnum, floor(specnum/2))
+# maxrep <- 500
 
 # simulate plot x species matrix
-#SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
+# SpecMat <- SpeciesMatrix(specnum = specnum, maxrep = maxrep)
 
 # select method and additional parameters if appropriate by setting the `if` statement to `TRUE`
 if (FALSE) {method = "av"}
@@ -350,11 +350,11 @@ AvFunc <- AverageFunction(SpecMat, FuncMat,
 # extract function names
 func.names <- as.character( unique( FuncMat$Functions))
 
-# standardize between 0 and 1
-AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
-
 # alternative standardize by maximum
-# AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
+ AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
+
+# alternative standardize between 0 and 1
+# AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
 ### Plot single function values
