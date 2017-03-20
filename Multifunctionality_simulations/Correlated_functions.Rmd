@@ -73,7 +73,8 @@ FuncMat <- FuncMat_long %>%
 FuncMat_plot <- 
   FuncMat %>% 
   group_by(Functions) %>% 
-  mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval))) %>% 
+  mutate(Funcval = Funcval / max(Funcval)) %>% 
+  #mutate(Funcval = (Funcval - min(Funcval)) / (max(Funcval) - min(Funcval))) %>% 
   spread(Functions, Funcval) %>% 
   select(-Species)
   
@@ -83,7 +84,7 @@ FuncMat_plot %>%
   as.matrix() %>% 
   set_rownames(unique(FuncMat$Species)) %>%
   corrplot( is.corr = F, tl.col = "black", cl.ratio = 0.2, 
-           cl.length = 11, method="square")
+           cl.length = 11, method="square", cl.lim = c(0,1))
 
 
 FuncMat_plot %>% cor %>% 
@@ -130,11 +131,11 @@ There are two main ways to standardize the function values:
 # extract function names
 func.names <- as.character( unique( FuncMat$Functions))
 
-# standardize between 0 and 1
-AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
+# standardize by maximum
+ AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
 
-# alternative standardize by maximum
-# AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {x/max(x)})
+ # alternative standardize between 0 and 1
+#AvFunc[,func.names] <- apply(AvFunc[,func.names], 2, function(x) {(x - min(x)) / (max(x) - min(x))})
 ```
 
 ### Plot single function values
