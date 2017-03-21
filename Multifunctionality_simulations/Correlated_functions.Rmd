@@ -8,12 +8,14 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```
 
-In this script we set up simulations with correlated function values as in van der Plas et al. (2016) "Jack-of-all-trades effects drive biodiversity–ecosystem multifunctionality relationships in European forests". Note that the implementation differs from the original script from van der Plas et al. as we build the simulations within our framework. The simulations are not included in the manuscript.
+This script produces:
 
++ Figure S1
+
+In this script we set up simulations with correlated function values as in van der Plas et al. (2016) "Jack-of-all-trades effects drive biodiversity–ecosystem multifunctionality relationships in European forests". Note that the implementation differs from the original script from van der Plas et al. as we build the simulations within our framework. 
 
 
 ```{r, "load packages"}
-library(MASS)
 library(ggplot2)
 library(Cairo)
 library(grid)
@@ -22,6 +24,7 @@ library(dplyr)
 library(tidyr)
 library(corrplot)
 library(magrittr)
+library(gridExtra)
 
 source("Multifunc_simulations_functions.R")
 ```
@@ -189,63 +192,151 @@ AverageFunc
 
 ```
 
+
+```{r}
+
+RES_func <- data.frame(thresholds = numeric(), 
+                   Richness = numeric(), 
+                   funcMaxed = numeric(), 
+                   nFunc = numeric(), 
+                   thresh = numeric())
+
+# empty dataframe to store results
+RES_slope <- data.frame(thresholds = numeric(), 
+                   Estimate = numeric(), 
+                   `Std. Error` = numeric(), 
+                   `t value` = numeric(), 
+                   `Pr(>|t|)` = numeric(), 
+                   nfunc = numeric(),
+                   func_comb = numeric())
+
+
+#loop over chosen subsets of all function of varying size
+for (i in c(ceiling(funcnum/2), funcnum)) { 
+    
+    # number of functions above threshold
+    mixedThresh <- getFuncsMaxed(AvFunc, func.names[1:i], threshmin=0.05,
+                                 threshmax=0.99, prepend=c("Richness"), maxN=1)
+    
+    RES_func <- rbind(RES_func, mixedThresh)
+    
+    # slopes  
+    mixedLinearSlopes<-getCoefTab(funcMaxed ~ Richness, fun = lm, 
+                                  data=mixedThresh, coefVar="Richness")
+    
+    colnames(mixedLinearSlopes) <- c("thresholds", "Estimate",
+                                     "Std. Error", "t value", "Pr(>|t|)")
+    
+    temp <- mixedLinearSlopes %>% 
+     # select(thresholds, Estimate) %>% 
+      mutate(nfunc = i) %>% 
+      mutate(func_comb = k)
+    
+    RES_slope <- rbind(RES_slope, temp)
+  
+  }
+
+```
+
 ### Single-threshold approach for multifunctionality
 
 + Multifunctionality is calculated as the number of functions that are sustained above a pre-defined threshold - calculated as a percentage of the maximum observed function value across all plots.
 
 ```{r, "single_thresh"}
 
-mixedThresh <- getFuncsMaxed(AvFunc, func.names, threshmin=0.05, threshmax=0.99, 
-                           prepend=c("Richness"), maxN=1)
 
-
-singleThresh <- filter(mixedThresh, as.character(thresh) %in% as.character(seq(0,1,0.1))) %>% 
+RES_func_p <- filter(RES_func, as.character(thresholds) %in% as.character(seq(0,1,0.1))) %>% 
   mutate(prct = paste(thresholds * 100, "%")) %>% 
-  select(Richness, funcMaxed, prct) %>% 
-  group_by(Richness, funcMaxed, prct) %>% 
+  select(Richness, funcMaxed, prct, nFunc) 
+
+singleThresh <- 
+RES_func_p %>% 
+  group_by(Richness, funcMaxed, prct, nFunc) %>% 
   summarise(n = n()) %>% 
-  ggplot(., aes(x = Richness, y = funcMaxed, fill = n))+
-  geom_point(shape = 21, size = 2.5, colour = "black", stroke = 0.2)+
-  stat_smooth(method = "lm", colour = "#de2d26", se = F)+
+  ggplot(., aes(x = Richness, y = funcMaxed, fill = as.factor(nFunc)))+
+  geom_point(shape = 21, size = 2.5, colour = "black", stroke = 0.3, 
+             position = position_dodge(width = 0.5), alpha = 0.5)+
+  stat_smooth(data = RES_func_p, method = "lm", aes(colour = as.factor(nFunc)), se = F)+
   facet_wrap(~prct)+
   labs(x = "Species richness", y = "Number of functions ≥ threshold")+
-  theme_bw(base_size=15)+
- # scale_y_continuous(limits = c(0,10), breaks = seq(0,10,3))+
-  scale_x_continuous(breaks = seq(1,15,2))+
+  theme_bw(base_size=12)+
+  scale_fill_brewer(guide = FALSE, palette = "Set1")+
+  scale_colour_brewer(guide = FALSE, palette = "Set1")+
+  scale_x_continuous(breaks = seq(0,10,2))+
+  scale_y_continuous(breaks = c(0, 5, 9))+
   theme(legend.position = "none")
+
 
 singleThresh
 ```
 
-Note that if you set the correlation to 1, all species must perform all functions at the same level, so each function has the exact same average across species. This means that any given mixture can only provide all functions or no functions above any given threshold - which leads to the binary oucome above. Fitting a linear model to a binary varible will also produce large confidence intervals if the replication is low (as described in van der Plas et al. 2016).
+Note that if we set the correlation to 1, all species must perform all functions at the same level, so each function has the exact same average across species. This means that any given mixture can only provide all functions or no functions above any given threshold - which leads to the binary oucome above. Fitting a linear model to a binary variable will then produce large confidence intervals if the replication is low (as described in van der Plas et al. 2016).
 
-### Multi-threshold approach for multifunctionality
+### Plot with variable number of functions
 
-+ The slopes shown in the previous figure are plotted against threshold values over the whole range of possible thresholds.
+```{r}
 
-```{r, "multithresh"}
-mixedLinearSlopes <- getCoefTab(funcMaxed ~ Richness, fun = lm,  data=mixedThresh, 
-                               coefVar="Richness")
-
-p <- SlopeSummary(mixedLinearSlopes)
-
-multiTresh <- ggplot(mixedLinearSlopes, aes(x=thresholds)) +
-  geom_ribbon(fill="#deebf7", aes(x=thresholds*100, ymin=Estimate- 1.96*mixedLinearSlopes[["Std. Error"]],                              ymax=Estimate+1.96*mixedLinearSlopes[["Std. Error"]])) + 
-  geom_point(aes(x=thresholds*100, y=Estimate), colour = "#132B43") +
-  annotate("segment", 
-           x = p$Estimate_sign_change*100 + 7,
-           xend = p$Estimate_sign_change*100,
-           y = 0.25*max(mixedLinearSlopes$Estimate),
-           yend = 0)+
-  annotate("label",
-           x = p$Estimate_sign_change*100 + 7,
-           y = 0.25*max(mixedLinearSlopes$Estimate),
-           label = paste("p: ", round(p$Estimate_sign_change*100), "%", sep = ""))+
-  ylab("Slope") + xlab("Threshold (%)") +
-  geom_abline(intercept=0, slope=0, lwd=1, linetype=2) + 
-  theme_bw(base_size=15)
+FUNC <- RES_slope %>% 
+  mutate(CI_high = Estimate + 1.96*`Std. Error`,
+         CI_low = Estimate - 1.96*`Std. Error`) %>%
+ggplot(., aes(x=thresholds*100, y=Estimate), size = 0.5, alpha = 0.3)+
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = as.factor(nfunc)), colour = NA, alpha = 0.4)+
+  geom_line( aes(colour = as.factor(nfunc)), lwd = 0.8) +
+  ylab("Slope estimate") + xlab("Threshold (%)") +
+  geom_abline(intercept=0, slope=0, lwd=0.5, linetype=2) + 
+  theme_bw(base_size=15)+
+  scale_fill_brewer(guide = FALSE, palette = "Set1")+
+  scale_color_brewer(guide = guide_legend(title = paste("Number of functions", 
+                                                        paste("(", specnum, " species)", 
+                                                              sep = ""), sep = "\n"),
+                                          nrow=2,byrow=TRUE),
+                     palette = "Set1")+
+  theme_classic()+
+  theme(legend.position = c(0.8,0.8))
+  scale_y_continuous(limits = c(-0.45, 0.45)) 
   
-  
-
-multiTresh 
+FUNC
 ```
+
+
+### Figure S1
+
+```{r}
+library(grid)
+
+
+# create an apporpriate viewport.  Modify the dimensions and coordinates as needed
+vp.Middle <- viewport(height=unit(1, "npc"), width=unit(1/3, "npc"), 
+                           just=c("left","top"), 
+                           y=1, x=1/3)
+
+vp.Right <- viewport(height=unit(1, "npc"), width=unit(1/3, "npc"), 
+                           just=c("left","top"), 
+                           y=1, x=2/3)
+
+
+cairo_pdf(filename = "Figure_S1.pdf", width = 12, height = 4, pointsize = 10)
+# plot your base graphics 
+par(mfrow=c(1,3))
+
+# First base plot
+FuncMat_plot %>% 
+  mutate(av = rowMeans(.)) %>%
+  arrange(-`F 1`) %>% 
+  as.matrix() %>% 
+  set_rownames(unique(FuncMat$Species)) %>%
+  corrplot( is.corr = F, tl.col = "black", cl.ratio = 0.2, 
+           cl.length = 11, method="square", cl.lim = c(0,1),
+           tl.cex = 1.5, cl.cex = 1.2)
+
+
+# plot the ggplot using the print command
+print(singleThresh, vp=vp.Middle)
+
+
+# plot the ggplot using the print command
+print(FUNC, vp=vp.Right)
+
+
+```
+
