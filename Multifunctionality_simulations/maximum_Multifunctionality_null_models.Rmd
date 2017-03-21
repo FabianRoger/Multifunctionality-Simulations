@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 This script produces:
 
-+ Figure_S2
++ Figure_S3
 
 This script is largely identical to the script [Explanation_of_slope_pattern.Rmd](Explanation_of_slope_pattern.Rmd) but here we focus on the slope of the **maximum multifunctionality** with diversity instead. 
 
@@ -71,7 +71,8 @@ To make the analysis reproducible we can set a seed with `set.seed.
 
 Set the range of data that should be included in the regression with the parameter `Q`. `Q = 1` takes the 100 percent quantile (= the maximum value) and produces Figure_S2. 
 
-By choosing another quantile, this script can produce all quantile regression from the 50^th^ to the 100^th^ percent quantile (using lower quantiles need some small adaptations) 
+By choosing another quantile, this script can produce all quantile regression from the 50^th^ to the 100^th^ percent quantile (using lower quantiles need some small adaptations): Note that we don't (strictly speaking) perform qunatile regression but rather regression of the upper X^th^ quantile of the data.
+
 
 ```{r, "funcmat"}
 # set seed to replicate analysis:
@@ -553,7 +554,7 @@ multiTresh$widths[1:3] <-  max.widths
 multiTresh_comp$widths[1:3] <-  max.widths
 ####
 
-Figure_S2 <- plot_grid(SingleFunc, SingleFunc_comp,
+Figure_S3 <- plot_grid(SingleFunc, SingleFunc_comp,
           AverageFunc, AverageFunc_comp,
           singleThresh, singleThresh_comp,
           multiTresh, multiTresh_comp, 
@@ -563,8 +564,8 @@ Figure_S2 <- plot_grid(SingleFunc, SingleFunc_comp,
           vjust = 1.5,
           label_size = 18)
 
-ggsave( "Figure_S2.pdf", Figure_S2, height = 20, width = 14, device=cairo_pdf)
+ggsave( "Figure_S3.pdf", Figure_S3, height = 20, width = 14, device=cairo_pdf)
 
-Figure_S2
+Figure_S3
 
 ```
