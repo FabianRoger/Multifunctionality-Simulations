@@ -11,7 +11,7 @@ from the article:
 
 > To explore the biodiversity multifunctionality-relationship, we simulate 15 species (A-O) that perform 9 functions (F 1 to F 9). The levels at which each function is performed by each species is drawn from a uniform distribution, U(0, 1). [...] In a second step we simulate a diversity experiment where we combine the species from the species pool in communities with richness 1 to 15. All possible communities are simulated at each richness level. We use a replacement design, i.e. with species abundances declining proportionally with the number of species. This means, for instance, that in a 10-species mixture, each species constitutes 10% of the total abundance. It is the most commonly used design in biodiversity ecosystem functioning experiments and simulates a scenario with no niches and equal fitness across species (under the assumption that all species are equally abundant). Such a scenario yields the null expectation used in biodiversity-ecosystem functioning studies when testing for biodiversity effects.
 
-In the app, you can vary the number `Number of species` and `Number of functions` with the glider in the sidebar. 
+In the app, you can vary the number `Number of species` and `Number of functions` with the slider in the sidebar. 
 
 **Note that in the app we do *not* compute *all possible combinations*, but a maximum of 200 (random and unique combinations) per richness level** 
 
@@ -56,9 +56,9 @@ citing form the article:
 
 Here, there are two ways to standardize the function values:
 
-+ between 0 and 1 with $x_{stand} = \frac{x - min(x)}{max(x) - min(x)}$ (option `between [0,1]`))
-
 + by the maximum with $x_{stand} = \frac{x}{max(x)}$ (option `by maximum`)
+
++ between 0 and 1 with $x_{stand} = \frac{x - min(x)}{max(x) - min(x)}$ (option `between [0,1]`))
 
 **The standardized function values for all species are shown in the heatmap that is generated after you click on `draw function values`. The colour gradient goes always from 0 to 1**
 
