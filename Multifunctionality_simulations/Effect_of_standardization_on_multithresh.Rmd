@@ -7,12 +7,12 @@ output:
 This script produces:
 
 + Figure 4
-+ Figure S1
++ Figure S2
 
 This script sets up the simulations to show the effect of standardization on the multithreshold approach. It includes 4 different scenarios.
 
 + `Single_dist`: 
-All function values are drawn from a single distribution. **Choosing the pre-set values produces Figure S1**
+All function values are drawn from a single distribution. **Choosing the pre-set values produces Figure S2**
 
 + `Multi_dist`:
 Different parameters can be specified for each function (which are supplied to the same distribution).
@@ -32,6 +32,7 @@ library(ggplot2)
 library(gridExtra)
 library(cowplot)
 library(RColorBrewer)
+library(repmis) # to download Biodepth data  
 
 source("Multifunc_simulations_functions.R")
 ```
@@ -42,7 +43,7 @@ source("Multifunc_simulations_functions.R")
 ```{r, "choose country"}
 # choose model (by setting vlaue to TRUE)
 
-Single_dist <- TRUE #produces Figure S1
+Single_dist <- TRUE #produces Figure S2
 Multi_dist <- FALSE
 Biodepth_data <- FALSE #produces Figure 4
 Biodepth_sim <- FALSE
@@ -56,7 +57,9 @@ if(sum(Single_dist,Multi_dist,Biodepth_data, Biodepth_sim) != 1){stop("please ch
 ```{r, `choose simulation`}
 if(sum(Biodepth_data, Biodepth_sim) == 1) {
   
-  data("all_biodepth")
+# download biodepth data from github repository of multifunc package
+  
+source_data("https://github.com/jebyrnes/multifunc/blob/master/data/all_biodepth.rda?raw=True")
   
 #choose Location (one off "Germany" "Portugal" "Switzerland" "Greece" "Ireland" "Sweden" "Sheffield" "Silwood" )
   
@@ -140,6 +143,7 @@ FuncList <- list()
 # choose parameters
 par1 <- seq(50, 100, len = funcnum) #parameter values for functions 1:nfunc (first parameter)
 par2 <- seq(15,3, len = funcnum) #parameter values for functions 1:nfunc (second parameter - if needed)
+
 
 for (i in 1:funcnum){
 var <- paste("FuncMat", i, sep = "_")
@@ -465,7 +469,7 @@ if(Biodepth_data) {
 }
 
 if(Single_dist) {
-  ggsave("Figure_S1.pdf", plot, height = 6, width = 10)
+  ggsave("Figure_S2.pdf", plot, height = 6, width = 10)
 }
 
 ```
