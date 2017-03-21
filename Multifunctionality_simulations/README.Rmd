@@ -31,20 +31,20 @@ In [this script](Effect_of_standardization_on_multithresh.Rmd) we set up the sim
 
 + This script produces **Figure_4** (for method `Biodepth_data`)
 
-+ This script produces **Figure_S1** (for method `Single_dist`)
++ This script produces **Figure_S2** (for method `Single_dist`)
 
 ### maximum_Multifunctionality_null_models.Rmd
 In [this script](maximum_Multifunctionality_null_models.Rmd) replicate the simulations performed in [Multifunctionality_null_models.Rmd](Multifunctionality_null_models.Rmd) but focus on the relationship between **maximum multifunctionality** and diversity instead.
 
-+ This script produces **Figure_S2**
-
++ This script produces **Figure_S3**
 
 ### Explanation_of_slope_pattern.Rmd
 In [this script](Explanation_of_slope_pattern.Rmd) we set up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. This figure and the accompanying text is not part of the final publication but is now part of the shiny app. 
 
 ### Correlated_functions.Rmd
-In [this script](Correlated_functions.Rmd) we set up simulations with correlated function values as in van der Plas et al. (2016) "Jack-of-all-trades effects drive biodiversity–ecosystem multifunctionality relationships in European forests". Note that the implementation differs from the original script from van der Plas et al. as we build the simulations within our framework. The simulations are not included in the manuscript.
+In [this script](Correlated_functions.Rmd) we set up simulations with correlated function values as in van der Plas et al. (2016) "Jack-of-all-trades effects drive biodiversity–ecosystem multifunctionality relationships in European forests". Note that the implementation differs from the original script from van der Plas et al. as we build the simulations within our framework. 
 
++ This script produces **Figure_S1**
 
 ### Session info
 
