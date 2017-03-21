@@ -72,7 +72,7 @@ br(),
                         "standardization method",
                         list("by maximum" = "max",
                              "between [0,1]" = "unit"),
-                        selected = "unit",
+                        selected = "max",
                         multiple = FALSE),
             
             
