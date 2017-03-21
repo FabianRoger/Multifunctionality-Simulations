@@ -9,11 +9,10 @@ attached base packages:
 [1] grid      stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
- [1] MASS_7.3-45        magrittr_1.5       corrplot_0.77      Cairo_1.5-9       
- [5] RColorBrewer_1.1-2 cowplot_0.7.0      gridExtra_2.2.1    ggplot2_2.2.0     
- [9] tidyr_0.6.1        dplyr_0.5.0       
+ [1] magrittr_1.5       corrplot_0.77      Cairo_1.5-9        repmis_0.5         RColorBrewer_1.1-2 cowplot_0.7.0      gridExtra_2.2.1   
+ [8] ggplot2_2.2.0      tidyr_0.6.1        dplyr_0.5.0       
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.9      assertthat_0.1   plyr_1.8.4       R6_2.2.0         gtable_0.2.0    
- [6] DBI_0.5-1        scales_0.4.1     lazyeval_0.2.0   tools_3.3.1      munsell_0.4.3   
-[11] colorspace_1.3-1 knitr_1.15.1     tibble_1.2      
+ [1] Rcpp_0.12.9       knitr_1.15.1      munsell_0.4.3     colorspace_1.3-1  R.cache_0.12.0    R6_2.2.0          httr_1.2.1       
+ [8] plyr_1.8.4        tools_3.3.1       data.table_1.10.0 gtable_0.2.0      R.oo_1.21.0       DBI_0.5-1         lazyeval_0.2.0   
+[15] assertthat_0.1    digest_0.6.10     tibble_1.2        R.utils_2.5.0     scales_0.4.1      R.methodsS3_1.7.1
