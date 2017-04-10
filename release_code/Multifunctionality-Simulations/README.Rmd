@@ -1,0 +1,57 @@
+---
+title: "README"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+[![DOI](https://zenodo.org/badge/87818219.svg)](https://zenodo.org/badge/latestdoi/87818219)
+
+### Multifunc_simulations_functions.R
+In [this script](Multifunc_simulations_functions.R) we define the functions that we use for the simulations in the scripts below. The functions are described in detail in this script. All other scripts load this script and won't run without it. 
+
+**The scripts below are R Markdown scripts and can be nit to HTML/PDF (requires \LaTeX) from within RStudio / with pandoc**
+
+**each of the scripts below can be downloaded and excecuted independently but all rely on the [Multifunc_simulations_functions.R](Multifunc_simulations_functions.R) script**
+
+### Multifunctionality_null_models.Rmd
+In [this script](Multifunctionality_null_models.Rmd)  we set up the simulations for the null expectation of the three most common multifunctionality metrics
+
++ This script produces **Figure_1**
+
+### Effect_of_N_func_and_N_spec_on_multithresh_slopes.Rmd
+In [this script](Effect_of_N_func_and_N_spec_on_slopes.Rmd) we set up the simulations to show the effect of including a varying number of functions and (separately) a varying number of species on the slope pattern produced by the multithreshold approach. (Figure 3 b,c)
+
+We also set up the simulations to show the effect of including a different number of functions on the slope of the *average multifunctionality ~ diveristy* relationship. (Figure 3 a)
+
++ This script produces **Figure_2**
+
+### Effect_of_standardization_on_multithresh.Rmd
+In [this script](Effect_of_standardization_on_multithresh.Rmd) we set up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. 
+
++ This script produces **Figure_3** (for method `Biodepth_data`)
+
++ This script produces **Figure_S2** (for method `Single_dist`)
+
+### maximum_Multifunctionality_null_models.Rmd
+In [this script](maximum_Multifunctionality_null_models.Rmd) replicate the simulations performed in [Multifunctionality_null_models.Rmd](Multifunctionality_null_models.Rmd) but focus on the relationship between **maximum multifunctionality** and diversity instead.
+
++ This script produces **Figure_S3**
+
+### Explanation_of_slope_pattern.Rmd
+In [this script](Explanation_of_slope_pattern.Rmd) we set up the simulations to explain the link between the distribution of function values across species, the slopes and the multithreshold approach. This figure and the accompanying text is not part of the final publication but is now part of the shiny app. 
+
+### Correlated_functions.Rmd
+In [this script](Correlated_functions.Rmd) we set up simulations with correlated function values as in van der Plas et al. (2016) "Jack-of-all-trades effects drive biodiversity–ecosystem multifunctionality relationships in European forests". Note that the implementation differs from the original script from van der Plas et al. as we build the simulations within our framework. 
+
++ This script produces **Figure_S1**
+
+### Session info
+
+[This File](sessionInfo.txt) shows the output of a `sessionInfo()` call after loading all packages used in the scripts above
+
+
+
+
